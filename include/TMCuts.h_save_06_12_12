@@ -1,0 +1,47 @@
+/*************************************************************************
+ * Author: Manuel Dieterle, 2012
+ *************************************************************************/
+
+//////////////////////////////////////////////////////////////////////////
+//                                                                      //
+// TMCuts                                                               //
+//                                                                      //
+// Class containing methods to determine analysis cuts.                 //
+//                                                                      //
+//////////////////////////////////////////////////////////////////////////
+
+
+#ifndef myTMCuts
+#define myTMCuts
+
+#include <iostream>
+#include <fstream>
+#include <stdio.h>
+#include "TFile.h"
+#include "TGaxis.h"
+#include "TPad.h"
+#include "TLatex.h"
+#include "TMObjectCollection.h"
+#include "TMath.h"
+#include "TH1.h"
+#include "TH2.h"
+#include "TSystem.h"
+#include "TGraphErrors.h"
+#include "TAxis.h"
+#include "TMTools.h"
+#include "TF1.h"
+#include "TMFunctor.h"
+#include "TOEnergyThetaCut.h"
+#include "TOHUtils.h"
+
+namespace TMCuts
+{
+    void FitMM(TMObjectCollection* m, const Char_t* szName, Int_t iCT = 1, Int_t iRebinMM = 10, Bool_t kFit = kTRUE);
+    void FitCop(TMObjectCollection* m, const Char_t* szName, Int_t iCT = 1, Int_t iRebinMM = 10, Bool_t kFit = kTRUE, Double_t fLeft = 100., Double_t fRight = 260.);
+    void FitDEvsE(TH2F* h, Int_t iR);
+    void FitDEvsTOFx(TH2F* h, Int_t iR, Double_t fSigma = 3., Bool_t kMC = kFALSE);
+    void FitDEvsTOFy(TH2F* h, Int_t iR);
+}
+
+#endif
+

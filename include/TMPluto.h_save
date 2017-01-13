@@ -1,0 +1,66 @@
+
+/*************************************************************************
+ * Author: Manuel Dieterle, 2012
+ *************************************************************************/
+
+//////////////////////////////////////////////////////////////////////////
+//                                                                      //
+// TMPluto                                                         //
+//                                                                      //
+// Class for a collection of TObjects                                   //
+//                                                                      //
+//////////////////////////////////////////////////////////////////////////
+
+
+#ifndef myTMPluto
+#define myTMPluto
+
+#include "TNamed.h"
+#include "PParticle.h"
+#include "PDistributionManager.h"
+#include "PBeamSmearing.h"
+#include "PChannel.h"
+#include "PReaction.h"
+
+class TMPluto : public TNamed
+{
+
+protected:
+
+    const Char_t* szReac;
+    const Char_t* szDis;
+    Double_t energyMin;
+    Double_t energyMax;
+    Int_t nEvents;
+
+    TString* strMain;
+    TString strBeam;
+    TString strTarget;
+    TString strPart;
+    TString strSpec;
+    TString strRecoil;
+    TString* strDec1;
+    TString* strDec2;
+
+    Int_t nMain;
+    Int_t nDec1;
+    Int_t nDec2all;
+    Int_t* nDec2;
+    Int_t nDec;
+  
+
+public:
+
+    TMPluto(const Char_t* reac, const Char_t* dis, Double_t eMin, Double_t eMax, Int_t n);
+    virtual ~TMPluto();
+
+    TString* ParseReaction(const Char_t* szReac, Int_t& n);
+    void SetMembers();
+    void Print();
+    void Prepare();
+
+    ClassDef(TMPluto, 0)  // pluto class
+};
+
+#endif
+

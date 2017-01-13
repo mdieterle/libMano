@@ -1,0 +1,216 @@
+/*************************************************************************
+ * Author: Manuel Dieterle, 2012
+ *************************************************************************/
+
+//////////////////////////////////////////////////////////////////////////
+//                                                                      //
+// TOHistoCollection                                                               //
+//                                                                      //
+// Class representing an energy bin.                                    //
+//                                                                      //
+//////////////////////////////////////////////////////////////////////////
+
+
+#include "TOHistoCollection.h"
+
+ClassImp(TOHistoCollection)
+
+//______________________________________________________________________________
+TOHistoCollection::TOHistoCollection(Int_t nH, TOEBin* fE, Int_t nCT, Int_t iCT, Int_t nMM, Int_t iMM)
+    : TNamed()
+{
+    // Constructor. Allocate space for 'nMaxTaggCh' tagger channels.
+ 
+    // init members
+    nHisto = nH;
+    nArr = nHisto-5;
+    fEBin = fE;
+    fEnergy = fE->GetEnergy();
+    iTCbin = fE->GetNTaggerChannel();
+    iCTbin = iCT;
+    iMMbin = iMM;
+    nTCbin = fE->GetNTotalTaggerChannels();
+    nCTbin = nCT;
+    nMMbin = nMM;
+    yMin = 0.;
+    yMax = 0.;
+
+    hArrHisto = new TH1*[nArr];
+    for (Int_t i = 0; i < nArr; i++)
+       hArrHisto[i] = 0;
+}
+
+//______________________________________________________________________________
+TOHistoCollection::~TOHistoCollection()
+{
+    // Destructor.
+    if (hArrHisto) delete [] hArrHisto;
+}
+
+//______________________________________________________________________________
+void TOHistoCollection::SetDataHisto(TH1* h)
+{
+    // Set Signal Histogram
+    hDatHisto = h;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TOHistoCollection::SetSignal1Histo(TH1* h)
+{
+    // Set Signal Histogram
+    hSig1Histo = h;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TOHistoCollection::SetSignal2Histo(TH1* h)
+{
+    // Set Signal Histogram
+    hSig2Histo = h;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TOHistoCollection::SetBackgroundHisto(TH1* h)
+{
+    // Set Signal Histogram
+    hBGHisto = h;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TOHistoCollection::SetTotalHisto(TH1* h)
+{
+    // Set Signal Histogram
+    hTotHisto = h;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TOHistoCollection::SetArrHisto(TH1** h)
+{
+    // Set Histogram Array
+    // if not the total array is passed, give array 
+    // argument as &f[1], for example
+
+    for (Int_t i = 0; i < nArr; i++)
+       hArrHisto[i] = h[i];
+
+    return;
+}
+
+//______________________________________________________________________________
+void TOHistoCollection::Print()
+{
+    // Print out the content of this class.
+
+    printf("TOHistoCollection content:\n");
+    printf("Histos in this collection:\n");
+    printf("    Data:    %s\n", hDatHisto->GetName());
+    printf("    Signal1: %s\n", hSig1Histo->GetName());
+    printf("    Signal2: %s\n", hSig2Histo->GetName());
+    printf("    BG:      %s\n", hBGHisto->GetName());
+    printf("    Total:   %s\n", hTotHisto->GetName());
+    if (nArr)
+    {
+       printf("    Array:\n");
+       for (Int_t i = 0; i < nArr; i++)
+       {
+          printf("       %s\n", hArrHisto[i]->GetName());
+       }
+    }
+    printf("Energy                      : %f\n", fEnergy);
+    printf("Energy error                : %f\n", fEnergyErr);
+    printf("Total # of tagg. ch.        : %d\n", nTCbin);
+    printf("Tagger Channel bin          : %d\n", iTCbin);
+    printf("# of tagg. ch. in this bin  : %d\n", fEBin->GetNTaggerChannels());
+    printf("first tagg. ch. in this bin : %d\n", fEBin->GetTaggerChannelLo());
+    printf("last tagg. ch. in this bin  : %d\n", fEBin->GetTaggerChannelUp());
+    printf("Total # of CT bins          : %d\n", nCTbin);
+    printf("Cos(Theta) bin              : %d\n", iCTbin);
+    printf("Total # of MM bins          : %d\n", nMMbin);
+    printf("Missing Mass bin            : %d\n", iMMbin);
+
+    return;
+}
+
+//______________________________________________________________________________
+void TOHistoCollection::GetHistoRange()
+{
+   if (hBGHisto->GetMinimum() < yMin) yMin = hBGHisto->GetMinimum();
+   if (hBGHisto->GetMaximum() > yMax) yMax = hBGHisto->GetMaximum();
+
+   if (hSig1Histo->GetMinimum() < yMin) yMin = hSig1Histo->GetMinimum();
+   if (hSig1Histo->GetMaximum() > yMax) yMax = hSig1Histo->GetMaximum();
+
+   if (hSig2Histo->GetMinimum() < yMin) yMin = hSig2Histo->GetMinimum();
+   if (hSig2Histo->GetMaximum() > yMax) yMax = hSig2Histo->GetMaximum();
+
+   if (hTotHisto->GetMinimum() < yMin) yMin = hTotHisto->GetMinimum();
+   if (hTotHisto->GetMaximum() > yMax) yMax = hTotHisto->GetMaximum();
+
+   if (hDatHisto->GetMinimum() < yMin) yMin = hDatHisto->GetMinimum();
+   if (hDatHisto->GetMaximum() > yMax) yMax = hDatHisto->GetMaximum();
+
+   for (Int_t i = 0; i < nArr; i++)
+   {
+      if (hArrHisto[i]->GetMinimum() < yMin) yMin = hArrHisto[i]->GetMinimum();
+      if (hArrHisto[i]->GetMaximum() > yMax) yMax = hArrHisto[i]->GetMaximum();
+   }
+
+   yMin *= 1.2;
+   yMax *= 1.2;
+
+   //printf("yMin: %5.3f - yMax: %5.3f\n", yMin, yMax);
+
+   return;
+}
+
+//______________________________________________________________________________
+void TOHistoCollection::Draw(const Char_t* szType, Double_t xMin, Double_t xMax)
+{
+   this->GetHistoRange();
+
+//   Char_t szName[256];
+//   sprintf(szName,"Energy: %5.3f CTbin: %i TCbin: %i MMbin: %i",fEnergy,iCTbin,iTCbin,iMMbin);
+//   TCanvas* c = new TCanvas(szName,szName,10,10,800,600);
+//   c->cd();
+
+   if (strcmp(szType,"all") != 0) 
+   {
+      Info("TOHistoCollection::Draw","Nothing specific specified");
+   }
+   else
+   {
+      for (Int_t i = 0; i < nArr; i++)
+      {
+         if (i == 0)
+         {
+            hArrHisto[0]->Draw("H");
+            hArrHisto[0]->GetXaxis()->SetRangeUser(xMin,xMax);
+            hArrHisto[0]->GetYaxis()->SetRangeUser(yMin,yMax);
+         }
+         hArrHisto[i]->Draw("Hsame");
+      }
+      if (nArr == 0)
+      {
+         hBGHisto->Draw("H");
+         hBGHisto->GetXaxis()->SetRangeUser(xMin,xMax);
+         hBGHisto->GetYaxis()->SetRangeUser(yMin,yMax);
+      }
+      else
+         hBGHisto->Draw("Hsame");
+      hSig2Histo->Draw("Hsame");
+      hSig1Histo->Draw("Hsame");
+      hTotHisto->Draw("Hsame");
+      hDatHisto->SetLineColor(1);
+      hDatHisto->Draw("E1same");
+   }
+   return;
+}

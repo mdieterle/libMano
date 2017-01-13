@@ -1,0 +1,1540 @@
+/*************************************************************************
+ * Author: Manuel Dieterle, 2012
+ *************************************************************************/
+
+//////////////////////////////////////////////////////////////////////////
+//                                                                      //
+// TMFitCollection_old                                                   //
+//                                                                      //
+// Class for collecting any kind of TObjects                            //
+//                                                                      //
+//////////////////////////////////////////////////////////////////////////
+
+
+#include "TMFitCollection_old.h"
+
+ClassImp(TMFitCollection_old)
+
+//______________________________________________________________________________
+TMFitCollection_old::TMFitCollection_old(const Char_t* szName, const Char_t* szTitle,
+                                 const Int_t nEbin, const Int_t nCTbin, const Int_t nBG)
+    : TNamed(szName, szTitle)
+{
+    // Constructor. Allocate space for 'nMaxTaggCh' tagger channels.
+ 
+    // init dimensions
+    fNBG = nBG;
+    fNCTbins = nCTbin;
+    fNEbins = nEbin;
+    szPolE = "pol5";
+    szPolCT = "pol3";
+    fIM = 135.;
+    kAll = kFALSE;
+
+    // init arrays
+    fLow = new Double_t[fNCTbins];
+    fUpp = new Double_t[fNCTbins];
+    hIM  = new TH2F*[fNCTbins];
+
+    for (Int_t i = 0; i < fNCTbins; i++)
+    {
+       fLow[i]  = 0.;
+       fUpp[i]  = 0.;
+    }
+
+    // cut object
+    eCut = 0;
+
+//    this->InitObjects();
+}
+
+//______________________________________________________________________________
+TMFitCollection_old::TMFitCollection_old(const Char_t* szName, const Char_t* szTitle)
+    : TNamed(szName, szTitle)
+{
+    // Constructor. Allocate space for 'nMaxTaggCh' tagger channels.
+ 
+    // init dimensions
+    fNBG = 0;
+    fNCTbins = 0;
+    fNEbins = 0;
+    szPolE = "";
+    szPolCT = "";
+    fIM = 0.;
+    kAll = kFALSE;
+
+    // init arrays
+//    fLow  = new Double_t[fNCTbins];
+//    fUpp  = new Double_t[fNCTbins];
+//    hIM  = new TH2F*[fNCTbins];
+
+//    for (Int_t i = 0; i < fNCTbins; i++)
+//    {
+//       fLow[i]  = 0.;
+//       fUpp[i]  = 0.;
+//    }
+
+    // cut object
+    eCut = 0;
+
+//    this->InitObjects();
+}
+
+//______________________________________________________________________________
+TMFitCollection_old::~TMFitCollection_old()
+{
+    // Destructor.
+    if (oDatIn)
+       delete [] oDatIn;
+    if (oSigIn)
+       delete [] oSigIn;
+    if (oBGIn)
+    {
+       for (Int_t i = 0; i < fNCTbins; i++) delete [] oBGIn[i];
+       delete [] oBGIn;
+    }
+    if (oDat)
+    {
+       for (Int_t i = 0; i < fNCTbins; i++) delete [] oDat[i];
+       delete [] oDat;
+    }
+    if (oSig)
+    {
+       for (Int_t i = 0; i < fNCTbins; i++) delete [] oSig[i];
+       delete [] oSig;
+    }
+    if (oBG)
+    {
+       for (Int_t i = 0; i < fNCTbins; i++)
+       {
+          delete [] oBG[i];
+          for (Int_t j = 0; j < fNEbins; j++)
+             delete [] oBG[i][j];
+       }
+       delete [] oBG;
+    }
+    if (oBGTot)
+    {
+       for (Int_t i = 0; i < fNCTbins; i++) delete [] oBGTot[i];
+       delete [] oBGTot;
+    }
+    if (oTot)
+    {
+       for (Int_t i = 0; i < fNCTbins; i++) delete [] oTot[i];
+       delete [] oTot;
+    }
+    if (oFit)
+    {
+       for (Int_t i = 0; i < fNCTbins; i++) delete [] oFit[i];
+       delete [] oFit;
+    }
+    if (fPar)
+    {
+       for (Int_t i = 0; i < fNCTbins; i++)
+       {
+          delete [] fPar[i];
+          for (Int_t j = 0; j < fNEbins; j++)
+             delete [] fPar[i][j];
+       }
+       delete [] fPar;
+    }
+    if (fFitCT)
+    {
+       for (Int_t i = 0; i < fNCTbins; i++)
+          delete [] fFitCT[i];
+    }
+    if (fFitE)
+    {
+       for (Int_t i = 0; i < fNEbins; i++)
+          delete [] fFitE[i];
+    }
+    if (oBG)
+    {
+       for (Int_t i = 0; i < fNCTbins; i++)
+       {
+          delete [] oBG[i];
+          for (Int_t j = 0; j < fNEbins; j++)
+             delete [] oBG[i][j];
+       }
+       delete [] oBG;
+    }
+    if (gParCT)
+    {
+       for (Int_t i = 0; i < fNCTbins; i++) delete [] gParCT[i];
+       delete [] gParCT;
+    }
+    if (gParE)
+    {
+       for (Int_t i = 0; i < fNEbins; i++) delete [] gParE[i];
+       delete [] gParE;
+    }
+    if (gCutMean)
+       delete [] gCutMean;
+    if (gCutSigma)
+       delete [] gCutSigma;
+    if (gCutLow)
+       delete [] gCutLow;
+    if (gCutUpp)
+       delete [] gCutUpp;
+    if (fCutMean)
+       delete [] fCutMean;
+    if (fCutSigma)
+       delete [] fCutSigma;
+    if (fCutLow)
+       delete [] fCutLow;
+    if (fCutUpp)
+       delete [] fCutUpp;
+    if (gCutMeanCT)
+       delete [] gCutMeanCT;
+    if (gCutSigmaCT)
+       delete [] gCutSigmaCT;
+    if (gCutLowCT)
+       delete [] gCutLowCT;
+    if (gCutUppCT)
+       delete [] gCutUppCT;
+    if (fCutMeanCT)
+       delete [] fCutMeanCT;
+    if (fCutSigmaCT)
+       delete [] fCutSigmaCT;
+    if (fCutLowCT)
+       delete [] fCutLowCT;
+    if (fCutUppCT)
+       delete [] fCutUppCT;
+
+    if (hIM) delete [] hIM;
+    delete [] fEnergy;
+    delete [] fCTlo;
+    delete [] fCTup;
+
+    if (fLow) delete [] fLow;
+    if (fUpp) delete [] fUpp;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::SetDimensions(Int_t ne, Int_t nc, Int_t nb)
+{
+   fNBG     = nb;
+   fNCTbins = nc;
+   fNEbins  = ne;
+
+   this->InitObjects();
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::InitObjects()
+{
+    // init objects
+    oDatIn  = new TObject*[fNCTbins];
+    oSigIn  = new TObject*[fNCTbins];
+    oBGIn   = new TObject**[fNCTbins];
+    oDat    = new TObject**[fNCTbins];
+    oSig    = new TObject**[fNCTbins];
+    oBG     = new TObject***[fNCTbins];
+    oBGTot  = new TObject**[fNCTbins];
+    oTot    = new TObject**[fNCTbins];
+    oFit    = new TObject**[fNCTbins];
+    fPar    = new Double_t**[fNCTbins];
+    fParE   = new Double_t**[fNCTbins];
+    fFitCT  = new TF1**[fNCTbins];
+    fFitE   = new TF1**[fNEbins];
+    gParCT  = new TGraphErrors**[fNCTbins];
+    gParE   = new TGraphErrors**[fNEbins];
+    gCutMean = new TGraphErrors*[fNCTbins];
+    gCutSigma = new TGraphErrors*[fNCTbins];
+    gCutLow = new TGraphErrors*[fNCTbins];
+    gCutUpp = new TGraphErrors*[fNCTbins];
+    fCutMean = new TF1*[fNCTbins];
+    fCutSigma = new TF1*[fNCTbins];
+    fCutLow = new TF1*[fNCTbins];
+    fCutUpp = new TF1*[fNCTbins];
+    gCutMeanCT = new TGraphErrors*[fNEbins];
+    gCutSigmaCT = new TGraphErrors*[fNEbins];
+    gCutLowCT = new TGraphErrors*[fNEbins];
+    gCutUppCT = new TGraphErrors*[fNEbins];
+    fCutMeanCT = new TF1*[fNEbins];
+    fCutSigmaCT = new TF1*[fNEbins];
+    fCutLowCT = new TF1*[fNEbins];
+    fCutUppCT = new TF1*[fNEbins];
+
+    for (Int_t i = 0; i < fNCTbins; i++)
+    {
+       oBGIn[i]   = new TObject*[fNBG];
+       oDat[i]    = new TObject*[fNEbins];
+       oSig[i]    = new TObject*[fNEbins];
+       oBG[i]     = new TObject**[fNEbins];
+       oBGTot[i]  = new TObject*[fNEbins];
+       oTot[i]    = new TObject*[fNEbins];
+       oFit[i]    = new TObject*[fNEbins];
+       fPar[i]    = new Double_t*[fNEbins];
+       fParE[i]   = new Double_t*[fNEbins];
+       fFitCT[i]  = new TF1*[fNBG+1];
+       gParCT[i]  = new TGraphErrors*[fNBG+1];
+       gCutMean[i] = new TGraphErrors(fNEbins);
+       gCutSigma[i] = new TGraphErrors(fNEbins);
+       gCutLow[i] = new TGraphErrors(fNEbins);
+       gCutUpp[i] = new TGraphErrors(fNEbins);
+
+       for (Int_t j = 0; j < fNEbins; j++)
+       {
+          oBG[i][j]   = new TObject*[fNBG];
+          fPar[i][j]  = new Double_t[fNBG+1];
+          fParE[i][j] = new Double_t[fNBG+1];
+       }
+
+       for (Int_t j = 0; j < fNBG+1; j++)
+          gParCT[i][j] = new TGraphErrors(fNEbins);
+    }
+
+    fEnergy = new Double_t[fNEbins];
+    fCTlo   = new Double_t[fNCTbins];
+    fCTup   = new Double_t[fNCTbins];
+
+    for (Int_t i = 0; i < fNEbins; i++)
+    {
+       fEnergy[i] = 0.;
+       fFitE[i] = new TF1*[fNBG+1];
+       gParE[i] = new TGraphErrors*[fNBG+1];
+          for (Int_t j = 0; j < fNBG+1; j++)
+            gParE[i][j] = new TGraphErrors(fNCTbins); 
+
+       gCutMeanCT[i] = new TGraphErrors(fNCTbins);
+       gCutSigmaCT[i] = new TGraphErrors(fNCTbins);
+       gCutLowCT[i] = new TGraphErrors(fNCTbins);
+       gCutUppCT[i] = new TGraphErrors(fNCTbins);
+    }
+
+    for (Int_t i = 0; i < fNCTbins; i++)
+    {
+       fCTlo[i] = 0.;
+       fCTup[i] = 0.;
+   }
+
+    Info("TMFitCollection_old::InitObjects","Initialized all Objects");
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddInputDataObject(Int_t ct, TObject* o)
+{
+    // Set Data Histogram
+    oDatIn[ct] = (TObject*)o;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddInputSignalObject(Int_t ct, TObject* o)
+{
+    // Set Data Histogram
+    oSigIn[ct] = (TObject*)o;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddInputBackgroundObject(Int_t ct, Int_t b, TObject* o)
+{
+    // Set Data Histogram
+    oBGIn[ct][b] = (TObject*)o;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddDataObject(Int_t ct, Int_t e, TObject* o)
+{
+    // Set Data Histogram
+    oDat[ct][e] = (TObject*)o;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddSignalObject(Int_t ct, Int_t e, TObject* o)
+{
+    // Set Data Histogram
+    oSig[ct][e] = (TObject*)o;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddBackgroundObject(Int_t ct, Int_t e, Int_t b, TObject* o)
+{
+    // Set Data Histogram
+    oBG[ct][e][b] = (TObject*)o;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddTotalBackgroundObject(Int_t ct, Int_t e, TObject* o)
+{
+    // Set Data Histogram
+    oBGTot[ct][e] = (TObject*)o;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddTotalObject(Int_t ct, Int_t e, TObject* o)
+{
+    // Set Data Histogram
+    oTot[ct][e] = (TObject*)o;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddFitObject(Int_t ct, Int_t e, TObject* o)
+{
+    // Set Data Histogram
+    oFit[ct][e] = (TObject*)o;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddFitParameters(Int_t ct, Int_t e, Double_t* p)
+{
+    // Set Data Histogram
+    (&fPar[ct][e])[0] = (Double_t*)p;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddFitParameters(Int_t ct, Double_t* p)
+{
+    // Set Data Histogram
+    for (Int_t i = 0; i < fNEbins; i++)
+       (&fPar[ct][i])[0] = (Double_t*)p;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddFitParameterErrors(Int_t ct, Int_t e, Double_t* pe)
+{
+    // Set Data Histogram
+    (&fParE[ct][e])[0] = (Double_t*)pe;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddFitParameterErrors(Int_t ct, Double_t* pe)
+{
+    // Set Data Histogram
+    for (Int_t i = 0; i < fNEbins; i++)
+       (&fParE[ct][i])[0] = (Double_t*)pe;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddFitFunctionCT(Int_t ct, Int_t bg, TF1* f)
+{
+    // Set Data Histogram
+    fFitCT[ct][bg] = (TF1*)f;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddFitFunctionE(Int_t e, Int_t bg, TF1* f)
+{
+    // Set Data Histogram
+    fFitE[e][bg] = (TF1*)f;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddFitGraphCT(Int_t ct, Int_t bg, TGraphErrors* g)
+{
+    // Set Data Histogram
+    gParCT[ct][bg] = (TGraphErrors*)g;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddFitGraphE(Int_t e, Int_t bg, TGraphErrors* g)
+{
+    // Set Data Histogram
+    gParE[e][bg] = (TGraphErrors*)g;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddMeanCutGraph(Int_t ct, TGraphErrors* g)
+{
+    // Set Data Histogram
+    gCutMean[ct] = (TGraphErrors*)g;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddSigmaCutGraph(Int_t ct, TGraphErrors* g)
+{
+    // Set Data Histogram
+    gCutSigma[ct] = (TGraphErrors*)g;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddLowerCutGraph(Int_t ct, TGraphErrors* g)
+{
+    // Set Data Histogram
+    gCutLow[ct] = (TGraphErrors*)g;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddUpperCutGraph(Int_t ct, TGraphErrors* g)
+{
+    // Set Data Histogram
+    gCutUpp[ct] = (TGraphErrors*)g;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddMeanCutGraphCT(Int_t e, TGraphErrors* g)
+{
+    // Set Data Histogram
+    gCutMeanCT[e] = (TGraphErrors*)g;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddSigmaCutGraphCT(Int_t e, TGraphErrors* g)
+{
+    // Set Data Histogram
+    gCutSigmaCT[e] = (TGraphErrors*)g;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddLowerCutGraphCT(Int_t e, TGraphErrors* g)
+{
+    // Set Data Histogram
+    gCutLowCT[e] = (TGraphErrors*)g;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddUpperCutGraphCT(Int_t e, TGraphErrors* g)
+{
+    // Set Data Histogram
+    gCutUppCT[e] = (TGraphErrors*)g;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddMeanCutFunc(Int_t ct, TF1* f)
+{
+    // Set Data Histogram
+    fCutMean[ct] = (TF1*)f;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddSigmaCutFunc(Int_t ct, TF1* f)
+{
+    // Set Data Histogram
+    fCutSigma[ct] = (TF1*)f;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddLowerCutFunc(Int_t ct, TF1* f)
+{
+    // Set Data Histogram
+    fCutLow[ct] = (TF1*)f;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddUpperCutFunc(Int_t ct, TF1* f)
+{
+    // Set Data Histogram
+    fCutUpp[ct] = (TF1*)f;
+
+    return;
+}
+
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddMeanCutFuncCT(Int_t e, TF1* f)
+{
+    // Set Data Histogram
+    fCutMeanCT[e] = (TF1*)f;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddSigmaCutFuncCT(Int_t e, TF1* f)
+{
+    // Set Data Histogram
+    fCutSigmaCT[e] = (TF1*)f;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddLowerCutFuncCT(Int_t e, TF1* f)
+{
+    // Set Data Histogram
+    fCutLowCT[e] = (TF1*)f;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddUpperCutFuncCT(Int_t e, TF1* f)
+{
+    // Set Data Histogram
+    fCutUppCT[e] = (TF1*)f;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddInputDataObjects(TObject** o)
+{
+    // Set Data Histograms
+    for (Int_t i = 0; i < fNCTbins; i++)
+       oDatIn[i] = (TObject*)o[i];
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddInputSignalObjects(TObject** o)
+{
+    // Set Data Histograms
+    for (Int_t i = 0; i < fNCTbins; i++)
+       oSigIn[i] = (TObject*)o[i];
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddInputBackgroundObjects(TObject*** o)
+{
+    // Set Data Histograms
+    for (Int_t i = 0; i < fNCTbins; i++)
+       for (Int_t j = 0; j < fNBG; j++)
+          oBGIn[i][j] = (TObject*)o[i][j];
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddDataObjects(TObject*** o)
+{
+    // Set Data Histograms
+    for (Int_t i = 0; i < fNCTbins; i++)
+       for (Int_t j = 0; j < fNEbins; j++)
+          oDat[i][j] = (TObject*)o[i][j];
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddSignalObjects(TObject*** o)
+{
+    // Set Signal Histogram
+    for (Int_t i = 0; i < fNCTbins; i++)
+       for (Int_t j = 0; j < fNEbins; j++)
+          oSig[i][j] = (TObject*)o;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddBackgroundObjects(TObject**** o)
+{
+    // Set Signal Histogram
+    for (Int_t i = 0; i < fNCTbins; i++)
+       for (Int_t j = 0; j < fNEbins; j++)
+          for (Int_t k = 0; k < fNBG; k++)
+             oBG[i][j][k] = (TObject*)o;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddTotalBackgroundObjects(TObject*** o)
+{
+    // Set Signal Histogram
+    for (Int_t i = 0; i < fNCTbins; i++)
+       for (Int_t j = 0; j < fNEbins; j++)
+          oBGTot[i][j] = (TObject*)o;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddTotalObjects(TObject*** o)
+{
+    // Set Signal Histogram
+    for (Int_t i = 0; i < fNCTbins; i++)
+       for (Int_t j = 0; j < fNEbins; j++)
+          oTot[i][j] = (TObject*)o;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::AddFitObjects(TObject*** o)
+{
+    // Set Signal Histogram
+    for (Int_t i = 0; i < fNCTbins; i++)
+       for (Int_t j = 0; j < fNEbins; j++)
+          oFit[i][j] = (TObject*)o;
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::SetFitLowerBoundary(Double_t v, Char_t* lo)
+{
+   fLow  = new Double_t[fNCTbins];
+   fMin = v;
+
+   Char_t * pch;
+   pch = strtok (lo,",");
+//   fLow[0] = atof(pch);
+
+   Int_t n = 0;
+   while (pch != NULL)
+   {
+      fLow[n] = atof(pch);
+      n++;
+      pch = strtok (NULL, ", ");
+   }
+
+   return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::SetFitUpperBoundary(Double_t v, Char_t* up)
+{
+   fUpp = new Double_t[fNCTbins];
+   fMax = v;
+
+   Char_t * pch;
+   pch = strtok (up,",");
+//   fUpp[0] = atof(pch);
+
+   Int_t n = 0;
+   while (pch != NULL)
+   {
+      fUpp[n] = atof(pch);
+      n++;
+      pch = strtok (NULL, ", ");
+   }
+
+   return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::SetParameterGraphs()
+{
+   // parameters as function of energy
+   for (Int_t i = 0; i < fNCTbins; i++)
+   {
+      for (Int_t j = 0; j < fNEbins; j++)
+      {
+         for (Int_t k = 0; k < fNBG+1; k++)
+         {
+            gParCT[i][k]->SetPoint(j,fEnergy[j],fPar[i][j][k]);
+            gParCT[i][k]->SetPointError(j,0.,fParE[i][j][k]);
+         }
+      }
+   }
+
+   // parameters as function of ct
+   for (Int_t i = 0; i < fNEbins; i++)
+   {
+      for (Int_t j = 0; j < fNCTbins; j++)
+      {
+         for (Int_t k = 0; k < fNBG+1; k++)
+         {
+            gParE[i][k]->SetPoint(j,0.5*(fCTlo[j]+fCTup[j]),fPar[j][i][k]);
+            gParE[i][k]->SetPointError(j,0.,fParE[j][i][k]);
+         }
+      }
+   }
+
+   return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::FitParameterGraphEnergy()
+{
+   for (Int_t i = 0; i < fNCTbins; i++)
+   {
+      for (Int_t k = 0; k < fNBG+1; k++)
+      {
+         fFitCT[i][k] = new TF1(Form("fCT_%i_%i",i,k),szPolCT,fEnergy[0],fEnergy[fNEbins-1]);
+         gParCT[i][k]->Fit(fFitCT[i][k],"+RBQ0M");
+      }
+
+      Info("TMFitCollection_old::FitParameterGraphEnergy","Fitted energy dependent CTbin %i with %s",i,szPolCT);
+   }
+
+   return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::FitParameterGraphCosTheta()
+{
+   for (Int_t i = 0; i < fNEbins; i++)
+   {
+      for (Int_t k = 0; k < fNBG+1; k++)
+      {
+         fFitE[i][k] = new TF1(Form("fE_%i_%i",i,k),szPolE,-1.,1.);
+         gParE[i][k]->Fit(fFitE[i][k],"+RBQ0M");
+      }
+
+      Info("TMFitCollection_old::FitParameterGraphCT","Fitted cos(theta) dependent Ebin %i with %s",i,szPolCT);
+   }
+
+   return;
+}
+
+//______________________________________________________________________________
+Double_t* TMFitCollection_old::GetFitParameterEnergy(Int_t ct, Int_t e)
+{
+   Double_t* par = new Double_t[fNBG+1];
+
+   for (Int_t i = 0; i < fNBG+1; i++)
+   {
+      par[i] = fFitCT[ct][i]->Eval(fEnergy[e]);
+//      if (par[i] < 1.e-6) par[i] = 1.e-6;
+   }
+
+   return par;
+
+}
+
+//______________________________________________________________________________
+Double_t* TMFitCollection_old::GetFitParameterCosTheta(Int_t ct, Int_t e)
+{
+   Double_t* par = new Double_t[fNBG+1];
+
+   for (Int_t i = 0; i < fNBG+1; i++)
+   {
+      par[i] = fFitE[e][i]->Eval(0.5*(fCTlo[ct]+fCTup[ct]));
+//      if (par[i] < 1.e-6) par[i] = 1.e-6;
+   }
+
+   return par;
+
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::Draw(Int_t ct, Int_t e, Double_t rLo, Double_t rUp, Bool_t kTit)
+{
+   TH1* hDat = (TH1*)oDat[ct][e];
+   hDat->SetMarkerColor(kBlack);
+   hDat->SetMarkerSize(1.1);
+   hDat->SetLineColor(kBlack);
+
+   TH1* hSig = (TH1*)oSig[ct][e];
+   hSig->SetLineColor(kBlue);
+   hSig->SetLineWidth(2);
+
+   TH1* hBG[fNBG];
+   for (Int_t i = 0; i < fNBG; i++)
+   {
+      hBG[i] = (TH1*)oBG[ct][e][i];
+      hBG[i]->SetLineColor(kGreen);
+      hBG[i]->SetLineWidth(2);
+   }
+
+   TH1* hBGTot = (TH1*)oBGTot[ct][e];
+   hBGTot->SetLineColor(kMagenta);
+   hBGTot->SetLineWidth(2);
+
+   TH1* hTot = (TH1*)oTot[ct][e];
+   hTot->SetLineColor(kRed);
+   hTot->SetLineWidth(2);
+
+   TF1* fFit = (TF1*)oFit[ct][e];
+   fFit->SetLineColor(kBlue);
+   fFit->SetLineStyle(2);
+   fFit->SetLineWidth(2);
+
+   TLine* lLo = new TLine(fCutLow[ct]->Eval(fEnergy[e]),0.0,fCutLow[ct]->Eval(fEnergy[e]),1.2*hDat->GetMaximum());
+   lLo->SetLineStyle(2);
+   lLo->SetLineWidth(2);
+   TLine* lUp = new TLine(fCutUpp[ct]->Eval(fEnergy[e]),0.0,fCutUpp[ct]->Eval(fEnergy[e]),1.2*hDat->GetMaximum());
+   lUp->SetLineStyle(2);
+   lUp->SetLineWidth(2);
+
+   if (kTit)
+      hDat->SetTitle(Form("Eg = %4.0f MeV | %2.1f < cos(#theta) < %2.1f",fEnergy[e],fCTlo[ct],fCTup[ct]));
+   else
+      hDat->SetTitle(Form("Eg = %4.0f MeV",fEnergy[e]));
+
+   hDat->SetStats(0);
+   hDat->Draw("E1");
+   if (rLo != 9999. && rUp != 9999.)
+      hDat->GetXaxis()->SetRangeUser(rLo,rUp);
+   hSig->Draw("Hsame");
+   for (Int_t i = 0; i < fNBG; i++)
+      hBG[i]->Draw("Hsame");
+   hBGTot->Draw("Hsame");
+   hTot->Draw("Hsame");
+   fFit->Draw("csame");
+   lLo->Draw("csame");
+   lUp->Draw("csame");
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::DrawInputData(Int_t ct)
+{
+   TH2F* h = (TH2F*)oDatIn[ct];
+   h->GetXaxis()->SetTitle("Eg [MeV]");
+   h->GetYaxis()->SetTitle("M_{X} - M_{N} [MeV]");
+   h->GetXaxis()->CenterTitle();
+   h->GetYaxis()->CenterTitle();
+   h->Draw("colz");
+
+   return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::DrawInputDataCT(Int_t e)
+{
+   TH2F* hTmp = (TH2F*)oDatIn[0];
+   TH2F* h = new TH2F(Form("%s_%i",hTmp->GetName(),e),Form("%s_%i",hTmp->GetName(),e),
+        fNCTbins,-1,1,
+        hTmp->GetNbinsY(),hTmp->GetYaxis()->GetBinLowEdge(1),hTmp->GetYaxis()->GetBinUpEdge(hTmp->GetNbinsY()));
+   h->Sumw2();
+
+   TH2F** hct = new TH2F*[fNCTbins];
+
+   for (Int_t i = 0; i < fNCTbins; i++)
+   {
+      hct[i] = (TH2F*)oDatIn[i];
+      for (Int_t j = 0; j < hct[i]->GetNbinsY(); j++)
+      {
+         h->SetBinContent(i+1,j+1,hct[i]->GetBinContent(e+1,j+1));
+         h->SetBinError(i+1,j+1,hct[i]->GetBinError(e+1,j+1));
+      }
+   }
+
+   h->GetXaxis()->SetTitle("cos(theta) [rad]");
+   h->GetYaxis()->SetTitle("M_{X} - M_{N} [MeV]");
+   h->GetXaxis()->CenterTitle();
+   h->GetYaxis()->CenterTitle();
+   h->Draw("colz");
+
+   return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::DrawInputSignal(Int_t ct)
+{
+   TH2F* h = (TH2F*)oSigIn[ct];
+   h->GetXaxis()->SetTitle("Eg [MeV]");
+   h->GetYaxis()->SetTitle("M_{X} - M_{N} [MeV]");
+   h->GetXaxis()->CenterTitle();
+   h->GetYaxis()->CenterTitle();
+   h->Draw("colz");
+
+   return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::DrawInputSignalCT(Int_t e)
+{
+   TH2F* hTmp = (TH2F*)oSigIn[0];
+   TH2F* h = new TH2F(Form("%s_%i",hTmp->GetName(),e),Form("%s_%i",hTmp->GetName(),e),
+        fNCTbins,-1,1,
+        hTmp->GetNbinsY(),hTmp->GetYaxis()->GetBinLowEdge(1),hTmp->GetYaxis()->GetBinUpEdge(hTmp->GetNbinsY()));
+   h->Sumw2();
+
+   TH2F** hct = new TH2F*[fNCTbins];
+
+   for (Int_t i = 0; i < fNCTbins; i++)
+   {
+      hct[i] = (TH2F*)oSigIn[i];
+      for (Int_t j = 0; j < hct[i]->GetNbinsY(); j++)
+      {
+         h->SetBinContent(i+1,j+1,hct[i]->GetBinContent(e+1,j+1));
+         h->SetBinError(i+1,j+1,hct[i]->GetBinError(e+1,j+1));
+      }
+   }
+
+   h->GetXaxis()->SetTitle("cos(theta) [rad]");
+   h->GetYaxis()->SetTitle("M_{X} - M_{N} [MeV]");
+   h->GetXaxis()->CenterTitle();
+   h->GetYaxis()->CenterTitle();
+   h->Draw("colz");
+
+   return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::DrawParametersCT(Int_t ct, Int_t bg, Bool_t kFit)
+{
+//   gParCT[ct][bg]->SetMarkerColor(k+1);
+   gParCT[ct][bg]->SetMarkerColor(kBlack);
+   gParCT[ct][bg]->SetMarkerSize(1.2);
+   gParCT[ct][bg]->SetMarkerStyle(20);
+   gParCT[ct][bg]->GetXaxis()->SetTitle("Eg [MeV]");
+   gParCT[ct][bg]->GetYaxis()->SetTitle(Form("Par_%i [a.u.]",bg));
+   gParCT[ct][bg]->GetXaxis()->CenterTitle();
+   gParCT[ct][bg]->GetYaxis()->CenterTitle();
+   gParCT[ct][bg]->Draw("ap");
+   
+   if (kFit)
+   {
+//      fFitCT[ct][bg]->SetLineColor(k+1);
+      fFitCT[ct][bg]->SetLineColor(kRed);
+      fFitCT[ct][bg]->SetLineWidth(2);
+      fFitCT[ct][bg]->Draw("csame");
+   }
+
+   return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::DrawParametersE(Int_t e, Int_t bg, Bool_t kFit)
+{
+//   gParE[e][bg]->SetMarkerColor(k+1);
+   gParE[e][bg]->SetMarkerColor(kBlack);
+   gParE[e][bg]->SetMarkerSize(1.2);
+   gParE[e][bg]->SetMarkerStyle(20);
+   gParE[e][bg]->GetXaxis()->SetTitle("Eg [MeV]");
+   gParE[e][bg]->GetYaxis()->SetTitle(Form("Par_%i [a.u.]",bg));
+   gParE[e][bg]->GetXaxis()->CenterTitle();
+   gParE[e][bg]->GetYaxis()->CenterTitle();
+   gParE[e][bg]->Draw("ap");
+   
+   if (kFit)
+   {
+//      fFitE[e][bg]->SetLineColor(k+1);
+      fFitE[e][bg]->SetLineColor(kRed);
+      fFitE[e][bg]->SetLineWidth(2);
+      fFitE[e][bg]->Draw("csame");
+   }
+
+   return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::DrawCuts(Int_t ct)
+{
+   gCutLow[ct]->SetMarkerStyle(20);
+   gCutLow[ct]->SetMarkerSize(1.2);
+   gCutLow[ct]->SetMarkerColor(kBlack);
+   gCutLow[ct]->Draw("lsame");
+
+   fCutLow[ct]->SetLineColor(kRed);
+   fCutLow[ct]->SetLineWidth(2);
+   fCutLow[ct]->Draw("csame");
+
+   gCutUpp[ct]->SetMarkerStyle(20);
+   gCutUpp[ct]->SetMarkerSize(1.2);
+   gCutUpp[ct]->SetMarkerColor(kBlack);
+   gCutUpp[ct]->Draw("lsame");
+
+   fCutUpp[ct]->SetLineColor(kRed);
+   fCutUpp[ct]->SetLineWidth(2);
+   fCutUpp[ct]->Draw("csame");
+
+   return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::DrawCutsCT(Int_t e)
+{
+   gCutLowCT[e]->SetMarkerStyle(20);
+   gCutLowCT[e]->SetMarkerSize(1.2);
+   gCutLowCT[e]->SetMarkerColor(kBlack);
+   gCutLowCT[e]->Draw("lsame");
+
+   fCutLowCT[e]->SetLineColor(kRed);
+   fCutLowCT[e]->SetLineWidth(2);
+   fCutLowCT[e]->Draw("csame");
+
+   gCutUppCT[e]->SetMarkerStyle(20);
+   gCutUppCT[e]->SetMarkerSize(1.2);
+   gCutUppCT[e]->SetMarkerColor(kBlack);
+   gCutUppCT[e]->Draw("lsame");
+
+   fCutUppCT[e]->SetLineColor(kRed);
+   fCutUppCT[e]->SetLineWidth(2);
+   fCutUppCT[e]->Draw("csame");
+
+   return;
+}
+//______________________________________________________________________________
+void TMFitCollection_old::GetCutsFromGaussian()
+{
+   if (!fSigma)   Error("TMFitCollection_old::GetCutsFromGauss","Sigma Factor not set");
+   if (!szPolMean) Error("TMFitCollection_old::GetCutsFromGauss","Mean fit polynomial (E) not set");
+   if (!szPolSigma) Error("TMFitCollection_old::GetCutsFromGauss","Sigma fit polynomial (E) not set");
+   if (!szPolLow) Error("TMFitCollection_old::GetCutsFromGauss","Lower fit polynomial (E) not set");
+   if (!szPolUpp) Error("TMFitCollection_old::GetCutsFromGauss","Upper fit polynomial (E) not set");
+   if (!szPolMeanCT) Error("TMFitCollection_old::GetCutsFromGauss","Mean fit polynomial (CT) not set");
+   if (!szPolSigmaCT) Error("TMFitCollection_old::GetCutsFromGauss","Sigma fit polynomial (CT) not set");
+   if (!szPolLowCT) Error("TMFitCollection_old::GetCutsFromGauss","Lower fit polynomial (CT) not set");
+   if (!szPolUppCT) Error("TMFitCollection_old::GetCutsFromGauss","Upper fit polynomial (CT) not set");
+
+
+   eCut = new TOEnergyThetaCut(fNCTbins,"cut");
+
+   for (Int_t i = 0; i < fNCTbins; i++)
+   {
+      for (Int_t j = 0; j < fNEbins; j++)
+      {
+         TF1* f = (TF1*)oFit[i][j]->Clone(Form("f_%i_%i",i,j));
+         Double_t mean = f->GetParameter(1);
+         Double_t mean_err = f->GetParError(1);
+         Double_t sigm = f->GetParameter(2);
+         Double_t sigm_err = f->GetParError(2);
+         gCutMean[i]->SetPoint(j,fEnergy[j],mean);
+         gCutSigma[i]->SetPoint(j,fEnergy[j],sigm);
+         gCutLow[i]->SetPoint(j,fEnergy[j],mean-fSigma*sigm);
+         gCutUpp[i]->SetPoint(j,fEnergy[j],mean+fSigma*sigm);
+         gCutMean[i]->SetPointError(j,0.,mean_err);
+         gCutSigma[i]->SetPointError(j,0.,sigm_err);
+         gCutLow[i]->SetPointError(j,0.,TMath::Sqrt(mean_err*mean_err+fSigma*fSigma*sigm_err*sigm_err));
+         gCutUpp[i]->SetPointError(j,0.,TMath::Sqrt(mean_err*mean_err+fSigma*fSigma*sigm_err*sigm_err));
+      }
+
+      fCutMean[i] = new TF1(Form("fMean_%i",i),szPolMean,fMin,fMax);
+      gCutMean[i]->SetName(Form("gMean_%i",i));
+      gCutMean[i]->Fit(fCutMean[i],"+RBQ0M","",fLow[i],fUpp[i]);
+      fCutSigma[i] = new TF1(Form("fSigma_%i",i),szPolSigma,fMin,fMax);
+      gCutSigma[i]->SetName(Form("gSigma_%i",i));
+      gCutSigma[i]->Fit(fCutSigma[i],"+RBQ0M","",fLow[i],fUpp[i]);
+
+      fCutLow[i] = new TF1(Form("fLo_%i",i),szPolLow,fMin,fMax);
+      gCutLow[i]->SetName(Form("gLo_%i",i));
+      gCutLow[i]->Fit(fCutLow[i],"+RBQ0M","",fLow[i],fUpp[i]);
+      fCutUpp[i] = new TF1(Form("fUp_%i",i),szPolUpp,fMin,fMax);
+      gCutUpp[i]->SetName(Form("gUp_%i",i));
+      gCutUpp[i]->Fit(fCutUpp[i],"+RBQ0M","",fLow[i],fUpp[i]);
+
+      eCut->SetMeanGraph(i,gCutMean[i]);
+      eCut->SetSigmaGraph(i,gCutSigma[i]);
+      eCut->SetLowerGraph(i,gCutLow[i]);
+      eCut->SetUpperGraph(i,gCutUpp[i]);
+      eCut->SetMeanFunction(i,fCutMean[i]);
+      eCut->SetSigmaFunction(i,fCutSigma[i]);
+      eCut->SetLowerFunction(i,fCutLow[i]);
+      eCut->SetUpperFunction(i,fCutUpp[i]);
+   }
+
+   for (Int_t i = 0; i < fNEbins; i++)
+   {
+      for (Int_t j = 0; j < fNCTbins; j++)
+      {
+         TF1* f = (TF1*)oFit[j][i]->Clone(Form("f_ct_%i_%i",j,i));
+         Double_t mean = f->GetParameter(1);
+         Double_t mean_err = f->GetParError(1);
+         Double_t sigm = f->GetParameter(2);
+         Double_t sigm_err = f->GetParError(2);
+         gCutMeanCT[i]->SetPoint(j,0.5*(fCTlo[j]+fCTup[j]),mean);
+         gCutSigmaCT[i]->SetPoint(j,0.5*(fCTlo[j]+fCTup[j]),sigm);
+         gCutLowCT[i]->SetPoint(j,0.5*(fCTlo[j]+fCTup[j]),mean-fSigma*sigm);
+         gCutUppCT[i]->SetPoint(j,0.5*(fCTlo[j]+fCTup[j]),mean+fSigma*sigm);
+         gCutMeanCT[i]->SetPointError(j,0.,mean_err);
+         gCutSigmaCT[i]->SetPointError(j,0.,sigm_err);
+         gCutLowCT[i]->SetPointError(j,0.,TMath::Sqrt(mean_err*mean_err+fSigma*fSigma*sigm_err*sigm_err));
+         gCutUppCT[i]->SetPointError(j,0.,TMath::Sqrt(mean_err*mean_err+fSigma*fSigma*sigm_err*sigm_err));
+      }
+
+      fCutMeanCT[i] = new TF1(Form("fMeanCT_%i",i),szPolMeanCT,-1,1);
+      gCutMeanCT[i]->SetName(Form("gMeanCT_%i",i));
+      gCutMeanCT[i]->Fit(fCutMeanCT[i],"+RBQ0M","",-1,1);
+      fCutSigmaCT[i] = new TF1(Form("fSigmaCT_%i",i),szPolSigmaCT,-1,1);
+      gCutSigmaCT[i]->SetName(Form("gSigmaCT_%i",i));
+      gCutSigmaCT[i]->Fit(fCutSigmaCT[i],"+RBQ0M","",-1,1);
+
+      fCutLowCT[i] = new TF1(Form("fLoCT_%i",i),szPolLowCT,-1,1);
+      gCutLowCT[i]->SetName(Form("gLoCT_%i",i));
+      gCutLowCT[i]->Fit(fCutLowCT[i],"+RBQ0M","",-1,1);
+      fCutUppCT[i] = new TF1(Form("fUpCT_%i",i),szPolUppCT,-1,1);
+      gCutUppCT[i]->SetName(Form("gUpCT_%i",i));
+      gCutUppCT[i]->Fit(fCutUppCT[i],"+RBQ0M","",-1,1);
+   }
+
+   return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::CalculateExcitationFunctions()
+{
+   if (!hIMref) Error("TMFitCollection_old::CalculateExcitationFunctions","unable to find reference ExFunc");
+
+   hIM = new TH2F*[fNCTbins];
+
+   for (Int_t i = 0; i < fNCTbins; i++)
+   {
+      hIM[i] = new TH2F(Form("Eg_IM_%i",i),Form("Eg_IM_%i",i),
+                  fNEbins,fEnergy[0],fEnergy[fNEbins-1],
+                  hIMref->GetNbinsY(),hIMref->GetYaxis()->GetBinLowEdge(1),hIMref->GetYaxis()->GetBinUpEdge(hIMref->GetNbinsY()));
+      hIM[i]->Sumw2();
+
+      Double_t* lo = gCutLow[i]->GetY();
+      Double_t* up = gCutUpp[i]->GetY();
+
+      for (Int_t j = 0; j < fNEbins; j++)
+      {
+         TH1D* hSig = (TH1D*)oSig[i][j]->Clone(Form("hSig_%i_%i",i,j));
+         Double_t val = 0.;
+         Double_t err_val = 0.;
+         Double_t e = eff->GetValue(eff->FindEnergyBin(fEnergy[j]),i)/fBR/fTD;
+         Double_t err_e = eff->GetError(eff->FindEnergyBin(fEnergy[j]),i);
+         if (kAll) 
+            val = hSig->IntegralAndError(1,hSig->GetNbinsX(),err_val)/e;
+         else 
+            val = hSig->IntegralAndError(hSig->FindBin(lo[j]),hSig->FindBin(up[j]),err_val)/e;
+         err_val = TMath::Sqrt(err_val*err_val/e/e+val*val*err_e*err_e/e/e/e/e);
+         if (isnan(val)) val = 0.;
+         if (isnan(err_val)) err_val = 0.;
+         hIM[i]->SetBinContent(j+1,hIM[i]->GetYaxis()->FindBin(fIM),val);
+         hIM[i]->SetBinError(j+1,hIM[i]->GetYaxis()->FindBin(fIM),err_val);
+      }
+   }
+
+   if (kAll)
+      Info("TMFitCollection_old::CalculateExcitationFunctions","Calculated Excitation Functions over the full range");
+   else
+      Info("TMFitCollection_old::CalculateExcitationFunctions","Calculated Excitation Functions within the cut range");
+
+   return;
+}
+
+//______________________________________________________________________________
+void TMFitCollection_old::Streamer(TBuffer& R__b)
+{
+    // Stream a TMFitCollection_old object.
+
+    UInt_t R__s, R__c;
+
+    if (R__b.IsReading())
+    {
+        Version_t R__v = R__b.ReadVersion(&R__s, &R__c);
+        if (R__v) { }
+
+        // call streamer of parent class
+        TNamed::Streamer(R__b);
+
+        // copy data members
+        R__b >> fNBG;
+        R__b >> fNCTbins;
+        R__b >> fNEbins;
+        R__b >> eCut;
+
+        // copy the objects
+        oDatIn  = new TObject*[fNCTbins];
+        oSigIn  = new TObject*[fNCTbins];
+        for (Int_t i = 0; i < fNCTbins; i++)
+        {
+           oDatIn[i]  = (TObject*) R__b.ReadObject(TObject::Class());
+           oSigIn[i]  = (TObject*) R__b.ReadObject(TObject::Class());
+        }
+
+        oBGIn  = new TObject**[fNCTbins];
+        for (Int_t i = 0; i < fNCTbins; i++)
+        {
+           oBGIn[i] = new TObject*[fNBG];
+           for (Int_t j = 0; j < fNBG; j++)
+              oBGIn[i][j] = (TObject*) R__b.ReadObject(TObject::Class());
+        }
+
+        oDat    = new TObject**[fNCTbins];
+        oSig    = new TObject**[fNCTbins];
+        oBGTot  = new TObject**[fNCTbins];
+        oTot    = new TObject**[fNCTbins];
+        oFit    = new TObject**[fNCTbins];
+        for (Int_t i = 0; i < fNCTbins; i++)
+        {
+           oDat[i]    = new TObject*[fNEbins];
+           oSig[i]    = new TObject*[fNEbins];
+           oBGTot[i]  = new TObject*[fNEbins];
+           oTot[i]    = new TObject*[fNEbins];
+           oFit[i]    = new TObject*[fNEbins];
+           for (Int_t j = 0; j < fNEbins; j++)
+           {
+              oDat[i][j]   = (TObject*) R__b.ReadObject(TObject::Class());
+              oSig[i][j]   = (TObject*) R__b.ReadObject(TObject::Class());
+              oBGTot[i][j] = (TObject*) R__b.ReadObject(TObject::Class());
+              oTot[i][j]   = (TObject*) R__b.ReadObject(TObject::Class());
+              oFit[i][j]   = (TObject*) R__b.ReadObject(TObject::Class());
+           }
+        }
+
+        oBG     = new TObject***[fNCTbins];
+        for (Int_t i = 0; i < fNCTbins; i++)
+        {
+           oBG[i]     = new TObject**[fNEbins];
+           for (Int_t j = 0; j < fNEbins; j++)
+           {
+              oBG[i][j]    = new TObject*[fNBG];
+              for (Int_t k = 0; k < fNBG; k++)
+                 oBG[i][j][k] = (TObject*) R__b.ReadObject(TObject::Class());
+           }
+        }
+
+        fPar    = new Double_t**[fNCTbins];
+        fParE   = new Double_t**[fNCTbins];
+        for (Int_t i = 0; i < fNCTbins; i++)
+        {
+           fPar[i]    = new Double_t*[fNEbins];
+           fParE[i]   = new Double_t*[fNEbins];
+           for (Int_t j = 0; j < fNEbins; j++)
+           {
+              fPar[i][j]   = new Double_t[fNBG+1];
+              fParE[i][j]  = new Double_t[fNBG+1];
+              for (Int_t k = 0; k < fNBG+1; k++)
+              {
+                 R__b >> fPar[i][j][k];
+                 R__b >> fParE[i][j][k];
+              }
+           }
+        }
+
+        hIM     = new TH2F*[fNCTbins];
+        for (Int_t i = 0; i < fNCTbins; i++)
+        {
+           hIM[i]     = (TH2F*) R__b.ReadObject(TH2F::Class());
+        }
+
+        gParCT = new TGraphErrors**[fNCTbins];
+        for (Int_t i = 0; i < fNCTbins; i++)
+        {
+           gParCT[i] = new TGraphErrors*[fNBG+1];
+           for (Int_t j = 0; j < fNBG+1; j++)
+              gParCT[i][j] = (TGraphErrors*) R__b.ReadObject(TGraphErrors::Class());
+        }
+
+        gParE  = new TGraphErrors**[fNEbins];
+        for (Int_t i = 0; i < fNEbins; i++)
+        {
+           gParE[i] = new TGraphErrors*[fNBG+1];
+           for (Int_t j = 0; j < fNBG+1; j++)
+              gParE[i][j] = (TGraphErrors*) R__b.ReadObject(TGraphErrors::Class());
+        }
+
+        fFitCT = new TF1**[fNCTbins];
+        for (Int_t i = 0; i < fNCTbins; i++)
+        {
+           fFitCT[i] = new TF1*[fNBG+1];
+           for (Int_t j = 0; j < fNBG+1; j++)
+              fFitCT[i][j] = (TF1*) R__b.ReadObject(TF1::Class());
+        }
+
+        fFitE  = new TF1**[fNEbins];
+        for (Int_t i = 0; i < fNEbins; i++)
+        {
+           fFitE[i] = new TF1*[fNBG+1];
+           for (Int_t j = 0; j < fNBG+1; j++)
+              fFitE[i][j] = (TF1*) R__b.ReadObject(TF1::Class());
+        }
+
+        gCutMean  = new TGraphErrors*[fNCTbins];
+        gCutSigma = new TGraphErrors*[fNCTbins];
+        gCutLow   = new TGraphErrors*[fNCTbins];
+        gCutUpp   = new TGraphErrors*[fNCTbins];
+        for (Int_t i = 0; i < fNCTbins; i++)
+        {
+           gCutMean[i]  = (TGraphErrors*) R__b.ReadObject(TGraphErrors::Class());
+           gCutSigma[i] = (TGraphErrors*) R__b.ReadObject(TGraphErrors::Class());
+           gCutLow[i]   = (TGraphErrors*) R__b.ReadObject(TGraphErrors::Class());
+           gCutUpp[i]   = (TGraphErrors*) R__b.ReadObject(TGraphErrors::Class());
+        }
+
+        fCutMean  = new TF1*[fNCTbins];
+        fCutSigma = new TF1*[fNCTbins];
+        fCutLow   = new TF1*[fNCTbins];
+        fCutUpp   = new TF1*[fNCTbins];
+        for (Int_t i = 0; i < fNCTbins; i++)
+        {
+           fCutMean[i]  = (TF1*) R__b.ReadObject(TF1::Class());
+           fCutSigma[i] = (TF1*) R__b.ReadObject(TF1::Class());
+           fCutLow[i]   = (TF1*) R__b.ReadObject(TF1::Class());
+           fCutUpp[i]   = (TF1*) R__b.ReadObject(TF1::Class());
+        }
+
+        gCutMeanCT  = new TGraphErrors*[fNEbins];
+        gCutSigmaCT = new TGraphErrors*[fNEbins];
+        gCutLowCT   = new TGraphErrors*[fNEbins];
+        gCutUppCT   = new TGraphErrors*[fNEbins];
+        for (Int_t i = 0; i < fNEbins; i++)
+        {
+           gCutMeanCT[i]  = (TGraphErrors*) R__b.ReadObject(TGraphErrors::Class());
+           gCutSigmaCT[i] = (TGraphErrors*) R__b.ReadObject(TGraphErrors::Class());
+           gCutLowCT[i]   = (TGraphErrors*) R__b.ReadObject(TGraphErrors::Class());
+           gCutUppCT[i]   = (TGraphErrors*) R__b.ReadObject(TGraphErrors::Class());
+        }
+
+        fCutMeanCT  = new TF1*[fNEbins];
+        fCutSigmaCT = new TF1*[fNEbins];
+        fCutLowCT   = new TF1*[fNEbins];
+        fCutUppCT   = new TF1*[fNEbins];
+        for (Int_t i = 0; i < fNEbins; i++)
+        {
+           fCutMeanCT[i]  = (TF1*) R__b.ReadObject(TF1::Class());
+           fCutSigmaCT[i] = (TF1*) R__b.ReadObject(TF1::Class());
+           fCutLowCT[i]   = (TF1*) R__b.ReadObject(TF1::Class());
+           fCutUppCT[i]   = (TF1*) R__b.ReadObject(TF1::Class());
+        }
+
+        fEnergy = new Double_t[fNEbins]; 
+        for (Int_t i = 0; i < fNEbins; i++)
+           R__b >> fEnergy[i];
+ 
+        fCTlo = new Double_t[fNCTbins];
+        fCTup = new Double_t[fNCTbins];
+        for (Int_t i = 0; i < fNCTbins; i++)
+        {
+           R__b >> fCTlo[i];
+           R__b >> fCTup[i];
+        }
+
+        // check byte count
+        R__b.CheckByteCount(R__s, R__c, TMFitCollection_old::IsA());
+    }
+    else
+    {
+        R__c = R__b.WriteVersion(TMFitCollection_old::IsA(), kTRUE);
+
+        // call streamer of parent class
+        TNamed::Streamer(R__b);
+
+        // copy data members
+        R__b << fNBG;
+        R__b << fNCTbins;
+        R__b << fNEbins;
+        R__b << eCut;
+        // copy the objects
+
+        for (Int_t i = 0; i < fNCTbins; i++)
+        {
+           R__b.WriteObject(oDatIn[i]);
+           R__b.WriteObject(oSigIn[i]);
+        }
+
+        for (Int_t i = 0; i < fNCTbins; i++)
+           for (Int_t j = 0; j < fNBG; j++)
+              R__b.WriteObject(oBGIn[i][j]);
+
+        for (Int_t i = 0; i < fNCTbins; i++)
+        {
+           for (Int_t j = 0; j < fNEbins; j++)
+           {
+              R__b.WriteObject(oDat[i][j]);
+              R__b.WriteObject(oSig[i][j]);
+              R__b.WriteObject(oBGTot[i][j]);
+              R__b.WriteObject(oTot[i][j]);
+              R__b.WriteObject(oFit[i][j]);
+           }
+        }
+
+        for (Int_t i = 0; i < fNCTbins; i++)
+           for (Int_t j = 0; j < fNEbins; j++)
+              for (Int_t k = 0; k < fNBG; k++)
+                 R__b.WriteObject(oBG[i][j][k]);
+
+        for (Int_t i = 0; i < fNCTbins; i++)
+        {
+           for (Int_t j = 0; j < fNEbins; j++)
+           {
+              for (Int_t k = 0; k < fNBG+1; k++)
+              {
+                 R__b << fPar[i][j][k];
+                 R__b << fParE[i][j][k];
+              }
+           }
+        }       
+
+        for (Int_t i = 0; i < fNCTbins; i++)
+           R__b.WriteObject(hIM[i]);
+
+        for (Int_t i = 0; i < fNCTbins; i++)
+           for (Int_t j = 0; j < fNBG+1; j++)
+              R__b.WriteObject(gParCT[i][j]);
+
+        for (Int_t i = 0; i < fNEbins; i++)
+           for (Int_t j = 0; j < fNBG+1; j++)
+              R__b.WriteObject(gParE[i][j]);
+
+        for (Int_t i = 0; i < fNCTbins; i++)
+           for (Int_t j = 0; j < fNBG+1; j++)
+              R__b.WriteObject(fFitCT[i][j]);
+
+        for (Int_t i = 0; i < fNEbins; i++)
+           for (Int_t j = 0; j < fNBG+1; j++)
+              R__b.WriteObject(fFitE[i][j]);
+
+        for (Int_t i = 0; i < fNCTbins; i++)
+        {
+           R__b.WriteObject(gCutMean[i]);
+           R__b.WriteObject(gCutSigma[i]);
+           R__b.WriteObject(gCutLow[i]);
+           R__b.WriteObject(gCutUpp[i]);
+        }
+
+        for (Int_t i = 0; i < fNCTbins; i++)
+        {
+           R__b.WriteObject(fCutMean[i]);
+           R__b.WriteObject(fCutSigma[i]);
+           R__b.WriteObject(fCutLow[i]);
+           R__b.WriteObject(fCutUpp[i]);
+        }
+
+        for (Int_t i = 0; i < fNEbins; i++)
+        {
+           R__b.WriteObject(gCutMeanCT[i]);
+           R__b.WriteObject(gCutSigmaCT[i]);
+           R__b.WriteObject(gCutLowCT[i]);
+           R__b.WriteObject(gCutUppCT[i]);
+        }
+
+        for (Int_t i = 0; i < fNEbins; i++)
+        {
+           R__b.WriteObject(fCutMeanCT[i]);
+           R__b.WriteObject(fCutSigmaCT[i]);
+           R__b.WriteObject(fCutLowCT[i]);
+           R__b.WriteObject(fCutUppCT[i]);
+        }
+
+        for (Int_t i = 0; i < fNEbins; i++)
+           R__b << fEnergy[i];
+
+        for (Int_t i = 0; i < fNCTbins; i++)
+        {
+           R__b << fCTlo[i];
+           R__b << fCTup[i];
+        }
+
+        // set byte count
+        R__b.SetByteCount(R__c, kTRUE);
+    }
+}
+
+//______________________________________________________________________________

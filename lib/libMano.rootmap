@@ -1,0 +1,9 @@
+Library.TMCollection:                       libMano.so libCore.so libHist.so libGraf.so libGpad.so libGui.so libPhysics.so libFoam.so libEG.so libTree.so
+Library.TMCombinedFit:                      libMano.so libCore.so libHist.so libGraf.so libGpad.so libGui.so libPhysics.so libFoam.so libEG.so libTree.so
+Library.TMCombinedFunctor:                  libMano.so libCore.so libHist.so libGraf.so libGpad.so libGui.so libPhysics.so libFoam.so libEG.so libTree.so
+Library.TMEBin:                             libMano.so libCore.so libHist.so libGraf.so libGpad.so libGui.so libPhysics.so libFoam.so libEG.so libTree.so
+Library.TMEnergyThetaCut:                   libMano.so libCore.so libHist.so libGraf.so libGpad.so libGui.so libPhysics.so libFoam.so libEG.so libTree.so
+Library.TMFit:                              libMano.so libCore.so libHist.so libGraf.so libGpad.so libGui.so libPhysics.so libFoam.so libEG.so libTree.so
+Library.TMFitCollection:                    libMano.so libCore.so libHist.so libGraf.so libGpad.so libGui.so libPhysics.so libFoam.so libEG.so libTree.so
+Library.TMObjectCollection:                 libMano.so libCore.so libHist.so libGraf.so libGpad.so libGui.so libPhysics.so libFoam.so libEG.so libTree.so
+Library.TMPluto:                            libMano.so libCore.so libHist.so libGraf.so libGpad.so libGui.so libPhysics.so libFoam.so libEG.so libTree.so

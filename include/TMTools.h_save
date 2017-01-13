@@ -1,0 +1,33 @@
+// SVN Info: $Id: TOCSBin.h 711 2010-12-17 01:22:21Z werthm $
+
+/*************************************************************************
+ * Author: Dominik Werthmueller, 2008-2010
+ *************************************************************************/
+
+//////////////////////////////////////////////////////////////////////////
+//                                                                      //
+// TOCSBin                                                              //
+//                                                                      //
+// Class representing an energy bin of a differential cross section.    //
+//                                                                      //
+//////////////////////////////////////////////////////////////////////////
+
+
+#ifndef myTOTools
+#define myTOTools
+
+#include "TFile.h"
+#include "TGaxis.h"
+#include "TPad.h"
+#include "TLatex.h"
+#include "TOHistoCollection.h"
+#include "TMath.h"
+
+namespace TOTools
+{
+    void DrawHistoCollection(const Char_t* szFile, const Char_t* szColl, Int_t iNPadX, Int_t iNPadY, Int_t iNDC);
+    void GetSBfromHistoCollection(const Char_t* szFile, const Char_t* szMM, const Char_t* szColl);
+}
+
+#endif
+

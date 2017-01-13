@@ -1,0 +1,224 @@
+/*************************************************************************
+ * Author: Manuel Dieterle, 2014
+ *************************************************************************/
+
+//////////////////////////////////////////////////////////////////////////
+//                                                                      //
+// TMFit                                                                //
+//                                                                      //
+// Class for determining cuts                                           //
+//                                                                      //
+//////////////////////////////////////////////////////////////////////////
+
+
+#ifndef myTMFit
+#define myTMFit
+
+#include <cstdlib>
+#include <iostream>
+#include <fstream>
+#include <stdio.h>
+#include <string.h>
+#include "TMFitCollection.h"
+#include "TOEnergyThetaCut.h"
+#include "TNamed.h"
+#include "TFile.h"
+#include "TH1.h"
+#include "TH2.h"
+#include "TMFunctor.h"
+#include "TF1.h"
+#include "TF2.h"
+#include "TCanvas.h"
+#include "TPad.h"
+#include "TGaxis.h"
+#include "TLine.h"
+#include "TLatex.h"
+#include "TRandom3.h"
+
+//using namespace std;
+
+class TMFit : public TNamed
+{
+
+protected:
+
+    TMFitCollection* fc;                    // fit object collection
+
+    Int_t fNBG;                             // size of BG array
+    Int_t fNCTbins;                         // # CTbins
+    Int_t fNEbins;                          // # Ebins
+    Int_t fRep;
+
+    Char_t** hNameBGall;                    // [fNBGall] all MC BG index array
+    Int_t* fIBGall;                         // [fNBGall] all MC BG index array
+    Int_t* fIBG;                            // [fNBG] MC BG index array
+    Int_t fNBGall;                          // number of all MC BG contributions
+    Int_t fRebin;                           // histogram rebin value
+    Double_t fFrac;                         // fraction of 2nd MC signal
+    Double_t fTargDens;                     // target density
+    Double_t fBrRatio;                      // branching ratio
+    Double_t fIM;                           // invariant mass value
+
+    Bool_t kTwoSig;                         // boolean for two MC signal fit
+    Bool_t kFitE;                           // boolean for E-parameter fit
+    Bool_t kFitChi;                         // boolean for chi2 opt fit
+    Bool_t kExFunc;                         // boolean for ex func calculation
+    Bool_t kIntAll;                         // boolean for MC signal integration
+
+    const Char_t* cData;                    // data filename
+    const Char_t* cMCsig;                   // MC signal filename
+    const Char_t* cMCsig1;                  // MC signal1 filename
+    const Char_t* cMCsig2;                  // MC signal2 filename
+    const Char_t* cMCbg;                    // MC background filename
+    const Char_t* cEff;                     // efficiency filename
+    const Char_t* cBGconfig;                // background config file
+    const Char_t* cBGconfig1;               // background1 config file
+    const Char_t* cBGconfig2;               // background2 config file
+    Char_t* cBGindices;                     // indices of background contributions to use
+    const Char_t* cCutHisto;                // name of histograms to use for fit
+    const Char_t* cExFunc;                  // name of ex func histo for cross sections
+    const Char_t* cAxis;                    // axis title
+
+    const Char_t* cParFitMeth;              // parameter fit method
+    const Char_t* cParFitPolCT;             // polynomial for CT parameter fit
+    const Char_t* cParFitPolE;              // polynomial for E parameter fit
+    const Char_t* cFitOpt;                  // fit option
+    
+    Double_t fGloMin;                       // global fit range minimum
+    Double_t fGloMax;                       // global fit range maximum
+    Double_t fSigMin;                       // signal fit range minimum
+    Double_t fSigMax;                       // signal fit range maximum
+    Double_t fSigHeightMin;                 // signal fit height minimum
+    Double_t fSigHeightMax;                 // signal fit height maximum
+    Double_t fParMin;                       // parameter limit minimum
+    Double_t fParMax;                       // parameter limit maximum
+    Double_t fGauMin;                       // gauss fit range minimum
+    Double_t fGauMax;                       // gauss fit range maximum
+    Double_t fGauHeightMin;                 // gauss fit height minimum
+    Double_t fGauHeightMax;                 // gauss fit height maximum
+    Double_t fGauMeanMin;                   // gauss fit mean minimum
+    Double_t fGauMeanMax;                   // gauss fit mean maximum
+    Double_t fGauSigmaMin;                  // gauss fit sigma minimum
+    Double_t fGauSigmaMax;                  // gauss fit sigma maximum
+
+    Double_t fChiMax;                       // fit max chi2
+    Int_t fChiN;                            // fit max chi2 trials
+    Double_t fSigma;                        // cut sigma
+    Double_t fMin;                          // cut range minimum
+    Double_t fMax;                          // cut range maximum
+    Char_t* fFitMin;                        // cut fit range minimum
+    Char_t* fFitMax;                        // cut fit range maximum
+    Char_t* cParEPolMean;                   // E - mean parameter fit polynomial
+    Char_t* cParEPolSigma;                  // E - sigma parameter fit polynomial
+    Char_t* cParEPolLo;                     // E - lo parameter fit polynomial
+    Char_t* cParEPolUp;                     // E - up parameter fit polynomial
+    Char_t* cParCTPolMean;                  // CT - mean parameter fit polynomial
+    Char_t* cParCTPolSigma;                 // CT - sigma parameter fit polynomial
+    Char_t* cParCTPolLo;                    // CT - lo parameter fit polynomial
+    Char_t* cParCTPolUp;                    // CT - up parameter fit polynomial
+
+    Int_t nIt;                              // iteration to be applied
+    Int_t nPadX;                            // number of pads in x dir
+    Int_t nPadY;                            // number of pads in y dir
+    Int_t ndc;                              // NDC axis ticks
+    Double_t xMin;                          // axis range minimum
+    Double_t xMax;                          // axis range maximum
+
+public:
+
+    TMFit() : TNamed(), fc(0), fNBG(0), fNCTbins(0), fNEbins(0),
+              hNameBGall(0), fIBGall(0), fIBG(0), fNBGall(0),
+              fRebin(0), fFrac(0), fTargDens(0), fBrRatio(0),
+              fIM(0), kTwoSig(0), kFitE(0), kExFunc(0), kIntAll(0),
+              cData(0), cMCsig(0), cMCsig1(0), cMCsig2(0), cMCbg(0),
+              cEff(0), cBGconfig(0), cBGconfig1(0), cBGconfig2(0),
+              cBGindices(0), cCutHisto(0), cExFunc(0), cAxis(0),
+              cParFitMeth(0), cParFitPolCT(0), cParFitPolE(0), cFitOpt(0),
+              fGloMin(0), fGloMax(0), fSigMin(0), fSigMax(0), 
+              fSigHeightMin(0), fSigHeightMax(0), fParMin(0), fParMax(0),
+              fGauMin(0), fGauMax(0), fGauHeightMin(0), fGauHeightMax(0),
+              fGauMeanMin(0), fGauMeanMax(0), fGauSigmaMin(0), fGauSigmaMax(0), 
+              fChiMax(0), fChiN(0), fSigma(0), 
+              fMin(0), fMax(0), fFitMin(0), fFitMax(0),
+              cParEPolMean(0), cParEPolSigma(0), cParEPolLo(0), cParEPolUp(0),
+              cParCTPolMean(0), cParCTPolSigma(0), cParCTPolLo(0), cParCTPolUp(0),
+              nIt(0), nPadX(0), nPadY(0), ndc(0), xMin(0), xMax(0) {}
+    TMFit(const Char_t* szName, const Char_t* szTitle);
+    virtual ~TMFit();
+
+    void SetNumberCosThetaBins(Int_t ct){ fNCTbins = ct; }
+    void SetNumberIterations(Int_t r){ fRep = r; }
+    void SetInputDataFilename(const Char_t* name){ cData = name; }
+    void SetInputMCSignalFilename(const Char_t* name){ cMCsig = name; }
+    void SetInputMCSignal1Filename(const Char_t* name){ cMCsig1 = name; }
+    void SetInputMCSignal2Filename(const Char_t* name){ cMCsig2 = name; }
+    void SetInputMCBackgroundFilenamePrefix(const Char_t* name){ cMCbg = name; }
+    void SetEfficiencyFilename(const Char_t* name){ cEff = name; }
+    void SetBackgroundConfig(const Char_t* name){ cBGconfig = name; }
+    void SetBackground1Config(const Char_t* name){ cBGconfig1 = name; }
+    void SetBackground2Config(const Char_t* name, Double_t f = 1.){ cBGconfig2 = name; fFrac = f; }
+    void SetBackgroundContributionIndices(Char_t* name){ cBGindices = name; }
+    void SetCutHistoName(const Char_t* name){ cCutHisto = name; }
+    void SetExcitationFunctionHistoName(const Char_t* name){ cExFunc = name; }
+    void SetCutAxisTitle(const Char_t* name){ cAxis = name; }
+    void SetTwoSignals(Bool_t k){ kTwoSig = k; }
+    void SetRebin(Int_t r){ fRebin = r; }
+    void SetMaxChiSquare(Double_t f){ fChiMax = f; }
+    void SetMaxChiSquareTrials(Double_t f){ fChiN = f; }
+
+    void SetParameterFitMethod(const Char_t* name){ cParFitMeth = name; }
+    void SetChiSquareOptimization(Bool_t k){ kFitChi = k; }
+    void SetParameterFitPolynomials(const Char_t* nameE, const Char_t* nameCT){ cParFitPolE = nameE; cParFitPolCT = nameCT; }
+    void SetFitOption(const Char_t* name){ cFitOpt = name; }
+    void SetGlobalFitRange(Double_t lo, Double_t up){ fGloMin = lo; fGloMax = up; }
+    void SetSignalFitRange(Double_t lo, Double_t up){ fSigMin = lo; fSigMax = up; }
+    void SetSignalFitHeight(Double_t lo, Double_t up){ fSigHeightMin = lo; fSigHeightMax = up; }
+    void SetGaussFitRange(Double_t lo, Double_t up){ fGauMin = lo; fGauMax = up; }
+    void SetGaussFitHeight(Double_t lo, Double_t up){ fGauHeightMin = lo; fGauHeightMax = up; }
+    void SetGaussFitMean(Double_t lo, Double_t up){ fGauMeanMin = lo; fGauMeanMax = up; }
+    void SetGaussFitSigma(Double_t lo, Double_t up){ fGauSigmaMin = lo; fGauSigmaMax = up; }
+    void SetParameterLimits(Double_t lo, Double_t up) { fParMin = lo; fParMax = up; }
+    void SetCutSigma(Double_t s){ fSigma = s; }
+    void SetCutRange(Double_t lo, Double_t up){ fMin = lo; fMax = up; }
+    void SetCutFitRange(Char_t* lo, Char_t* up){ fFitMin = lo; fFitMax = up; }
+    void SetCutFitPolynomials(Char_t* em, Char_t* es, Char_t* el, Char_t* eu,
+                              Char_t* cm, Char_t* cs, Char_t* cl, Char_t* cu)
+                              { cParEPolMean = em; cParEPolSigma = es; cParEPolLo = el; cParEPolUp = eu;
+                                cParCTPolMean = cm; cParCTPolSigma = cs; cParCTPolLo = cl; cParCTPolUp = cu; }
+
+    void ApplyIteration(Int_t n){ nIt = n; }
+    void SetNumPadX(Int_t n){ nPadX = n; }
+    void SetNumPadY(Int_t n){ nPadY = n; }
+    void SetNDC(Int_t n){ ndc = n; }
+    void SetAxisMin(Double_t f){ xMin = f; }
+    void SetAxisMax(Double_t f){ xMax = f; }
+
+    void SetTargetDensity(Double_t t){ fTargDens = t; }
+    void SetBranchingRatio(Double_t b){ fBrRatio = b; }
+    void SetInvariantMassValue(Double_t i){ fIM = i; }
+    void IntegrateAll(Bool_t k){ kIntAll = k; }
+
+    void Configure();
+    void SetBackgroundContributions();
+    void SetCollection();
+
+    void FitParameters(Int_t n);
+    void Fit();
+    void Fit2D();
+    void Iterate(Int_t n, Bool_t kInit, Bool_t kChi);
+
+    void SaveAll();
+    void CleanGraph(TGraphErrors* g);
+    void DrawFit(Int_t iNPadX, Int_t iNPadY, Int_t iNDC);
+    void DrawChiSquare();
+    void DrawParameters();
+    void DrawCuts();
+    void DrawCutRegions();
+
+    void Print();
+
+    ClassDef(TMFit, 1)
+};
+
+#endif
+

@@ -1,0 +1,430 @@
+/*************************************************************************
+ * Author: Manuel Dieterle, 2012
+ *************************************************************************/
+
+//////////////////////////////////////////////////////////////////////////
+//                                                                      //
+// TMPluto                                                              //
+//                                                                      //
+// Class for easy evgen processing with Pluto++                         //
+//                                                                      //
+//////////////////////////////////////////////////////////////////////////
+
+
+#include "TMPluto.h"
+
+ClassImp(TMPluto)
+
+//______________________________________________________________________________
+TMPluto::TMPluto(TString reac, const Char_t* dis, Double_t eMin, Double_t eMax, Int_t n)
+{
+   szReac = reac;
+   szDis  = dis;
+   energyMin = eMin;
+   energyMax = eMax;
+   nEvents = n;
+
+   strBeam = "";
+   strTarget = "";
+   strPart = "";
+   strSpec = "";
+   strRecoil = "";
+
+   nMain = 0;
+
+   nCh = 0;
+   nDec   = new Int_t*[10];
+   strDec = new TString*[10];
+   nDecAll = new Int_t[10];
+
+   for (Int_t i = 0; i < 10; i++)
+   {
+      nDecAll[i] = 0;
+      nDec[i]   = new Int_t[50];
+      strDec[i] = new TString[50];
+
+      for (Int_t j = 0; j < 50; j++)
+      {
+         nDec[i][j]   = 0;
+         strDec[i][j] = "";
+      }
+   }
+   
+   strMain = ParseReaction(szReac, nMain, 1);
+   nDecAll[0] = nMain-3;
+
+   for (Int_t i = 0; i < nMain; i++)
+      printf("Particle %i: %s\n",i+1,strMain[i].Data());
+
+   this->SetMembers();
+   this->Print();
+//   this->Prepare();
+}
+
+//______________________________________________________________________________
+TMPluto::~TMPluto()
+{
+   for (Int_t i = 0; i < 10; i++)
+   {
+      for (Int_t j = 0; j < 50; j++)
+      {
+         delete &nDec[i][j];
+         delete strDec[i][j];
+      }
+
+      delete &nDecAll[i];
+      delete [] nDec[i];
+      delete [] strDec[i];
+   }
+
+   delete [] nDecAll;
+   delete [] nDec;
+   delete [] strDec;
+}
+
+//______________________________________________________________________________
+TString* TMPluto::ParseReaction(TString szReac, Int_t& n, Bool_t kInit)
+{
+   TString* strNew;
+   strNew = new TString[50];
+
+   TString str = "";
+
+   if (kInit)
+   {
+      str += szReac(0,szReac.First("-")-1);
+      str += " + ";
+      str += szReac(szReac.First(">")+2,szReac.Length()-1);
+   }
+
+   n = 0;
+   while(str != "")
+   {
+      if (str(0,str.First("+")-1) != "")
+      {
+         strNew[n] = str(0,str.First("+")-1);
+         str.Remove(0,str.First("+")+2);
+
+         while (strNew[n].CountChar('[') != strNew[n].CountChar(']'))
+         {
+            strNew[n] += " + ";
+            strNew[n] += str(0,str.First("+")-1);
+            str.Remove(0,str.First("+")+2);
+         }
+      }
+      else
+      {
+         strNew[n] = str;
+         str = "";
+      }
+      n++;
+   }
+
+   return strNew;
+}
+
+//______________________________________________________________________________
+void TMPluto::SetMembers()
+{
+   TString strTmp = "";
+   TString strCopy = "";
+
+   // get beam (particle 1) and target (particle 2)
+   // with fermi motion: get participant particle
+   strBeam = strMain[0];
+
+   if (strMain[1].Contains("("))
+   {
+      strCopy = strMain[1];
+      strTarget = strCopy.Remove(strCopy.First("("),strCopy.Length()-1);
+
+      strTmp  = strMain[1].Remove(0,strMain[1].First("(")+1);
+      strPart = strTmp.Remove(strTmp.First(")"),strTmp.First(")")+1);
+   }
+   else
+      strTarget = strMain[1];
+
+   // get recoil particle
+   // with fermi motion: get spectator particle
+   if (strMain[nMain-1].Contains("("))
+   {
+      strCopy = strMain[nMain-1];
+      strRecoil = strCopy.Remove(strCopy.First("("),strCopy.Length()-1);
+
+      strTmp  = strMain[nMain-1].Remove(0,strMain[nMain-1].First("(")+1);
+      strSpec = strTmp.Remove(strTmp.First(")"),strTmp.First(")")+1);
+   }
+   else
+      strRecoil = strMain[nMain-1];
+
+   // get product particles except recoil
+   for (Int_t i = 0; i < nDecAll[0]; i++)
+   {
+      // stable particle
+      if (!strMain[i+2].Contains("["))
+         strDec[0][i] = strMain[i+2];
+      // decaying particle
+      else
+      {
+         strCopy = strMain[i+2];
+         strDec[0][i] = strCopy.Remove(strCopy.First("["),strCopy.Length()-1);
+
+         strMain[i+2].Remove(0,strMain[i+2].First("[")+1);
+         strMain[i+2].Remove(strMain[i+2].Last(']'),strMain[i+2].Last(']')+1);
+
+         // products stable
+         if (!strMain[i+2].Contains("+"))
+         {
+            while (strMain[i+2] != "")
+            {
+               Ssiz_t sEnd = 0;
+               if (strMain[i+2].First(" ") > 0)
+                  sEnd = strMain[i+2].First(" ");
+               else
+                  sEnd = strMain[i+2].Length()-1;
+               strDec[1][nDecAll[1]] = strMain[i+2](0,sEnd);
+               strMain[i+2].Remove(0,sEnd+1);
+               nDecAll[1]++;
+               nDec[0][i]++;
+            }
+   
+            nCh++;
+         }
+         // products unstable
+         else
+         {
+            TString* string = new TString[50];
+            Int_t nint = 0;
+            string = ParseReaction(strMain[i+2], nint);
+
+            nDecAll[1] += nint;
+            nDec[0][i] += nint;
+
+            for (Int_t j = 0; j < nint; j++)
+            {
+               strCopy = string[j];
+               strDec[1][nDecAll[1]] = strCopy.Remove(strCopy.First("["),strCopy.Length()-1);
+      
+               string[j].Remove(0,string[j].First("[")+1);
+               string[j].Remove(string[j].Last(']'),string[j].Last(']')+1);
+      
+               // products stable
+               if (!string[j].Contains("+"))
+               {
+                  while (string[j] != "")
+                  {
+                     Ssiz_t sEnd = 0;
+                     if (string[j].First(" ") > 0)
+                        sEnd = string[j].First(" ");
+                     else
+                        sEnd = string[j].Length()-1;
+                     strDec[2][nDecAll[2]] = string[j](0,sEnd);
+                     string[j].Remove(0,sEnd+1);
+                     nDecAll[2]++;
+                     nDec[1][j]++;
+                  }
+      
+                  nCh++;
+               }
+               else
+                  printf("%s - I am working on that\n",string[j].Data());
+            }
+         }
+      }
+   }
+}
+
+//______________________________________________________________________________
+void TMPluto::Print()
+{
+   printf("Found %i particles\n", nMain);
+   printf("          beam:   %s\n", strBeam.Data());
+   printf("          target: %s\n", strTarget.Data());
+   if (strPart != "")
+   {
+   printf("             participant: %s\n", strPart.Data());
+   printf("             spectator:   %s\n", strSpec.Data());
+   }
+   printf("          recoil: %s\n", strRecoil.Data());
+
+   printf("          %i others: \n", nDecAll[0]);
+  
+   for (Int_t i = 0; i < nDecAll[0]; i++)
+   {
+      printf("             %i.%i ",i+1,nDec[0][i]);
+      if (nDec[0][i])
+      {
+         printf("%s -> ", strDec[0][i].Data());
+         for (Int_t j = 0; j < nDec[0][i]; j++)
+            printf("%s", strDec[1][i].Data());
+         printf("\n");
+      }
+      else
+         printf("%s\n", strDec[0][i].Data());
+   }
+}
+
+//______________________________________________________________________________
+void TMPluto::Prepare()
+{
+   Char_t szName[256];
+
+   if (strPart != "")
+   {
+      makeDistributionManager()->Exec("nucleus_fermi:gamma");
+      Info("TMPluto::Prepare","Enabling Quasi-Free Production");
+   }
+
+   //call member of the modified PBeamSmearing class
+   PBeamSmearing *smear = new PBeamSmearing("beam_smear", "Beam Momentum Smearing");
+
+   sprintf(szName,"%s + %s",strBeam.Data(),strTarget.Data());
+
+   //pass reaction
+   smear->SetReaction(szName);
+   //define function + momentum range according to which the beam momentum is smeared
+   smear->SetMomentumFunction(new TF1(szDis,szDis,energyMin,energyMax));
+   //add smearing to pluto world
+   makeDistributionManager()->Add(smear);
+
+      PUtils::SetSeed(0);
+
+      PParticle *pBeam      = new PParticle(strBeam.Data(),energyMin);
+      PParticle *pTarget    = new PParticle(strTarget.Data());
+      PParticle *pSpectator = new PParticle(strSpec.Data());
+
+      // IS particle
+      PParticle *s = new PParticle(*pBeam+*pTarget);
+
+      // Quasi-free sub-reaction:
+      PParticle *pBeam2  = new PParticle(strBeam.Data());
+      PParticle *pParticipant = new PParticle(strPart.Data());
+      PParticle *s2       = new PParticle(*pBeam2+*pParticipant);
+
+      // Outgoing products of g-N scattering process:         
+      PParticle *pRecoil = new PParticle(strRecoil.Data());
+      PParticle **pDec1;
+      pDec1 = new PParticle*[nDecAll[0]];
+      PParticle **pDec2;
+      pDec2 = new PParticle*[nDecAll[1]];
+
+      Int_t n = 0;
+
+      for (Int_t j = 0; j < nDecAll[0]; j++)
+      {
+         pDec1[j] = new PParticle(strDec[0][j].Data());
+
+         if (nDec[0][j])
+         {
+            for (Int_t k = 0; k < nDec[0][j]; k++)
+            {
+               pDec2[n] = new PParticle(strDec[1][n].Data());
+               n++;
+            }
+         }
+      }
+
+      n = 0;
+
+      // Define group of particles of each step
+      PParticle *cc1[] = {s,pSpectator,s2};
+      PChannel *c1 = new PChannel(cc1);
+
+      PParticle **cc2;
+      cc2 = new PParticle*[nDecAll[0]+2];
+      PParticle **cc3;
+      cc3 = new PParticle*[nDecAll[0]+nDecAll[1]];
+
+      cc2[0] = s2;
+      for (Int_t j = 0; j < nDecAll[0]; j++)
+      {
+         cc2[j+1] = pDec1[j];
+         if (nDec[0][j])
+         {
+            cc3[n] = pDec1[j];
+            n++;
+            for (Int_t k = 0; k < nDec[0][j]; k++)
+            {
+               cc3[n] = pDec2[k];
+               n++;
+//               nn++;
+            }
+         }
+      }
+      cc2[nDecAll[0]+1] = pRecoil;
+
+      n = 0;
+      Int_t nn = 0;
+
+      PParticle ***cc4;
+      cc4 = new PParticle**[nCh];
+
+      Int_t *num;
+      num = new Int_t[nCh];
+
+      for (Int_t j = 0; j < nDecAll[0]; j++)
+      {
+         if (nDec[0][j])
+         {
+            cc4[n] = new PParticle*[nDec[0][j]+1];
+            cc4[n][0] = cc3[nn];
+printf("cc4[%i][%i]\n",n,0);
+cc3[nn]->Print();
+            num[n] = 0;
+            nn++;
+            for (Int_t k = 0; k < nDec[0][j]; k++)
+            {
+               cc4[n][k+1] = cc3[nn];
+printf("cc4[%i][%i]\n",n,k+1);
+cc3[nn]->Print();
+               num[n]++;
+               nn++;
+            }
+            n++;
+         }
+      }
+
+      for (Int_t j = 0; j < nCh; j++)
+      {
+         printf("Decay %i:\n",j+1);
+
+         for (Int_t k = 0; k < num[j]+1; k++)
+         {
+printf("cc4[%i][%i]\n",j,k);
+            cc4[j][k]->Print(); 
+         }
+      }
+
+
+
+
+      // Allocate groups to decay channel
+     PChannel *c2 = new PChannel(cc2,nDecAll[0]+1);
+
+     PChannel **c3;
+     c3 = new PChannel*[nCh];
+
+     for (Int_t j = 0; j < nCh; j++)
+        c3[j] = new PChannel(cc4[j],num[j]);
+
+//     PChannel *c3 = new PChannel(cc3,2);
+//
+     // Allocate channels
+     PChannel **cc;
+     cc = new PChannel*[nCh+2];
+     cc[0] = c1;
+     cc[1] = c2;
+     for (Int_t j = 0; j < nCh; j++)
+        cc[j+2] = c3[j];
+//     PChannel *cc[] = {c1,c2,c3[0]};
+//
+///      sprintf(NameFile1, "pi0_p_%i", i); //File name
+     PReaction *Reac = new PReaction(cc,"parser_test",nCh+2,1,0,0,0);    // Define reaction
+//
+     Reac->Print();        // Write to .root file 
+//      Reac->loop(1000000);
+}
+
+//______________________________________________________________________________
+
+

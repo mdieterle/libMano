@@ -1,0 +1,93 @@
+
+/*************************************************************************
+ * Author: Manuel Dieterle, 2012
+ *************************************************************************/
+
+//////////////////////////////////////////////////////////////////////////
+//                                                                      //
+// TOCSBin                                                              //
+//                                                                      //
+// Class representing an energy bin of a differential cross section.    //
+//                                                                      //
+//////////////////////////////////////////////////////////////////////////
+
+
+#ifndef myTOHistoCollection
+#define myTOHistoCollection
+
+#include "TNamed.h"
+#include "TH1.h"
+#include "TOEBin.h"
+#include "TCanvas.h"
+
+class TOHistoCollection : public TNamed
+{
+
+protected:
+    Int_t nHisto;                           // number of histos
+    Int_t nHArr;                            // histo array dim
+    TH1* hDatHisto;                         // data histo
+    TH1* hSig1Histo;                        // sig1 histo
+    TH1* hSig2Histo;                        // sig2 histo
+    TH1* hBGHisto;                          // bg histo
+    TH1* hTotHisto;                         // total histo
+
+    Int_t iDatHisto;                        // arr num data histo
+    Int_t iSig1Histo;                       // arr num sig1 histo
+    Int_t iSig2Histo;                       // arr num sig2 histo
+    Int_t iBGHisto;                         // arr num bg histo
+    Int_t iTotHisto;                        // arr num total histo
+
+    TH1** hArrHisto;                        //[nHArr] array histo
+    TH1** hTotArr;                          //[nHisto] array histo
+    TOEBin* fEBin;                          //-> Energy Bin
+    Double_t fEnergy;                       // energy
+    Double_t fEnergyErr;                    // energy error
+    Int_t iTCbin;                           // this TCbin 
+    Int_t iCTbin;                           // this CTbin
+    Int_t iMMbin;                           // this MMbin
+    Int_t nTCbin;                           // total number of tagger channels
+    Int_t nCTbin;                           // total number of CT bins
+    Int_t nMMbin;                           // total number of MM bins
+    Double_t yMin;                          // value of yAxis start
+    Double_t yMax;                          // value of yAxis end
+
+public:
+    TOHistoCollection() : TNamed(), nHisto(0), nHArr(0), hDatHisto(0), hSig1Histo(0), hSig2Histo(0),
+                          hBGHisto(0), hTotHisto(0), hArrHisto(0), hTotArr(0), fEBin(0), fEnergy(0.), fEnergyErr(0.),
+                          iTCbin(0), iCTbin(0), iMMbin(0), nTCbin(0), nCTbin(0), nMMbin(0), yMin(0.), yMax(0.) { }
+    TOHistoCollection(TOEBin* fE, Int_t nCT, Int_t iCT, Int_t nMM, Int_t iMM);
+    virtual ~TOHistoCollection();
+    void Print();
+
+    Int_t GetNumberOfHistos() const { return nHisto; }
+    Double_t GetEnergy() const { return fEnergy; }
+    Double_t GetEnergyError() const { return fEnergyErr; }
+    Int_t GetTaggerChannelBin() const { return iTCbin; }
+    Int_t GetCTBin() const { return iCTbin; }
+    Int_t GetMMBin() const { return iMMbin; }
+    Int_t GetNTaggerChannels() const { return nTCbin; }
+    Int_t GetNCTBins() const { return nCTbin; }
+    Int_t GetNMMBins() const { return nMMbin; }
+    TH1* GetDataHisto() const { return hDatHisto; }
+    TH1* GetSignal1Histo() const { return hSig1Histo; }
+    TH1* GetSignal2Histo() const { return hSig2Histo; }
+    TH1* GetBackgroundHisto() const { return hBGHisto; }
+    TH1* GetTotalHisto() const { return hTotHisto; }
+//    TH1** GetHistoArray() const { return hArrHisto; }
+    TH1** GetTotalArray() const { return hTotArr; }
+
+    void SetDataHisto(TH1* h);
+    void SetSignal1Histo(TH1* h);
+    void SetSignal2Histo(TH1* h);
+    void SetBackgroundHisto(TH1* h);
+    void SetTotalHisto(TH1* h);
+//    void SetArrHisto(TH1** h, Int_t iNum);
+    void GetHistoRange();
+    void Draw(const Char_t* szType="all", Double_t xMin = 0., Double_t xMax = 300.);
+ 
+    ClassDef(TOHistoCollection, 1)  // Bin of differential cross section
+};
+
+#endif
+

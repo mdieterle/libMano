@@ -1,0 +1,832 @@
+/*************************************************************************
+ * Author: Manuel Dieterle, 2012
+ *************************************************************************/
+
+//////////////////////////////////////////////////////////////////////////
+//                                                                      //
+// TMFit_old                                                   //
+//                                                                      //
+// Class for collecting any kind of TObjects                            //
+//                                                                      //
+//////////////////////////////////////////////////////////////////////////
+
+
+#include "TMFit_old.h"
+
+ClassImp(TMFit_old)
+
+//______________________________________________________________________________
+TMFit_old::TMFit_old(const Char_t* szName, const Char_t* szTitle,
+             const Char_t* szConfig, Char_t* szBG,
+             const Char_t* szPolM, const Char_t* szPolS, 
+             const Char_t* szPolLo, const Char_t* szPolUp, 
+             const Char_t* szPolMc, const Char_t* szPolSc, 
+             const Char_t* szPolLoc, const Char_t* szPolUpc, Double_t fSigma,
+             Double_t fFitMin, Double_t fFitMax,
+             Char_t* szFitLo, Char_t* szFitUp,
+             const Char_t* szData, const Char_t* szMCsig, const Char_t* szMCbg,
+             const Char_t* szHisto, Int_t nCT,
+             const Char_t* szXtitle, const Char_t* szYtitle,
+             const Char_t* szExFunc, Bool_t kSig,
+             const Char_t* szConfig1, const Char_t* szConfig2,
+             const Char_t* szMCsig1, const Char_t* szMCsig2, Double_t nRel)
+    : TNamed(szName, szTitle)
+{
+    // init background contributions
+    this->SetBackgroundContributions(szConfig,szBG,kSig,szConfig1,szConfig2);
+
+    // init vars
+    fNCTbins    = nCT;
+    hName       = szHisto;
+    fRebin      = 1;
+
+    // init fit collection
+    fc = new TMFit_oldCollection(szName,szName);
+
+    // init cut object
+//    fe = new TOEnergyThetaCut(fNCTbins,Form("%s_cut",szName));
+
+    // set histograms
+    this->SetCollection(szData,szMCsig,szMCbg,szXtitle,szYtitle,szExFunc,kSig,szMCsig1,szMCsig2,nRel);
+
+    // set parameters
+    fc->SetFitLowerBoundary(fFitMin,szFitLo);
+    fc->SetFitUpperBoundary(fFitMax,szFitUp);
+    fc->SetFitMeanPolynomial(szPolM);
+    fc->SetFitSigmaPolynomial(szPolS);
+    fc->SetFitLowerPolynomial(szPolLo);
+    fc->SetFitUpperPolynomial(szPolUp);
+    fc->SetFitMeanPolynomialCT(szPolMc);
+    fc->SetFitSigmaPolynomialCT(szPolSc);
+    fc->SetFitLowerPolynomialCT(szPolLoc);
+    fc->SetFitUpperPolynomialCT(szPolUpc);
+    fc->SetFitSigma(fSigma);
+
+    // print configuration settings
+    this->Print();
+}
+
+//______________________________________________________________________________
+TMFit_old::TMFit_old()
+    : TNamed()
+{
+}
+
+//______________________________________________________________________________
+TMFit_old::~TMFit_old()
+{
+    // Destructor.
+    if (fc) delete fc;
+//    if (fe) delete fe;
+}
+
+//______________________________________________________________________________
+void TMFit_old::SetCollection(const Char_t* szData, const Char_t* szMCsig, const Char_t* szMCbg,
+                          const Char_t* szXtitle, const Char_t* szYtitle, const Char_t* szExFunc,
+                          Bool_t kSig, const Char_t* szMCsig1, const Char_t* szMCsig2, Double_t nRel)
+{
+    // get input files
+    TFile* fData = new TFile(szData);
+    TFile* fMC = 0;
+    TFile* fMC1 = 0;
+    TFile* fMC2 = 0;
+
+    if (kSig)
+    {
+       fMC1 = new TFile(szMCsig1);
+       fMC2 = new TFile(szMCsig2);
+    }
+    else
+       fMC = new TFile(szMCsig);   
+
+    TFile** fMCbg;
+    fMCbg = new TFile*[fNBG];
+    for (Int_t i = 0; i < fNBG; i++)
+       fMCbg[i] = new TFile(Form("%s_%i.root",szMCbg,fIBG[i]));
+
+    // set reference ExFunc histo
+    if (szExFunc)
+    {
+       TH2F* hRef = (TH2F*)fData->Get(Form("%s_0",szExFunc))->Clone("hRef");
+       fc->SetReferenceExFunc(hRef);
+    }
+
+    // set dimensions for collection
+    TH2F* hTmp = (TH2F*)fData->Get(Form("%s_0",hName))->Clone("hTmp");
+    fc->SetDimensions(hTmp->GetNbinsX(),fNCTbins,fNBG);
+
+    // set energies
+    for (Int_t i = 0; i < hTmp->GetNbinsX(); i++)
+       fc->SetEnergy(i,hTmp->GetXaxis()->GetBinCenter(i+1));
+
+    // set cos theta
+    for (Int_t i = 0; i < fNCTbins; i++)
+    {
+       fc->SetLowerCosTheta(i,-1.+i*2./fNCTbins);
+       fc->SetUpperCosTheta(i,-1.+(i+1)*2./fNCTbins);
+    }
+
+    for (Int_t i = 0; i < fNCTbins; i++)
+    {
+       TH2F* hData = (TH2F*)fData->Get(Form("%s_%i",hName,i))->Clone(Form("hData_tmp_%i",i));
+       fc->AddInputDataObject(i,hData);
+       TH2F* hSig = 0;
+       if (kSig)
+       {
+          hSig = (TH2F*)fMC1->Get(Form("%s_%i",hName,i))->Clone(Form("hSig_tmp_%i",i));
+          hSig->Add((TH2F*)fMC2->Get(Form("%s_%i",hName,i)),nRel);
+       }
+       else
+          hSig = (TH2F*)fMC->Get(Form("%s_%i",hName,i))->Clone(Form("hSig_tmp_%i",i));
+
+       fc->AddInputSignalObject(i,hSig);
+
+       TH2F** hMCbg = new TH2F*[fNBG];
+       for (Int_t j = 0; j < fNBG; j++)
+       {
+          hMCbg[j] = (TH2F*)fMCbg[j]->Get(Form("%s_%i",hName,i))->Clone(Form("hMCbg_tmp_%i_%i",i,j));
+          fc->AddInputBackgroundObject(i,j,hMCbg[j]);
+       }
+
+       for (Int_t k = 0; k < hTmp->GetNbinsX(); k++)
+       {
+          TH1D* hData_p = (TH1D*)hData->ProjectionY(Form("hData_%i_%i",i,k),k+1,k+1);
+          hData_p->GetXaxis()->SetTitle(szXtitle);
+          hData_p->GetXaxis()->CenterTitle();
+          hData_p->GetYaxis()->SetTitle(szYtitle);
+          hData_p->GetYaxis()->CenterTitle();
+          fc->AddDataObject(i,k,hData_p);
+          TH1D* hSig_p  = (TH1D*)hSig ->ProjectionY(Form("hSig_%i_%i",i,k),k+1,k+1);
+          fc->AddSignalObject(i,k,hSig_p);
+
+          for (Int_t j = 0; j < fNBG; j++)
+          {
+             TH1D* hMCbg_p = (TH1D*)hMCbg[j]->ProjectionY(Form("hBG_%i_%i_%i",i,k,j),k+1,k+1);
+             fc->AddBackgroundObject(i,k,j,hMCbg_p);
+          }
+       }
+    }
+
+    return;
+}
+
+//______________________________________________________________________________
+void TMFit_old::SetBackgroundContributions(const Char_t* szConfig, Char_t* szBG, Bool_t kSig, const Char_t* szConfig1, const Char_t* szConfig2)
+{
+   // count number of BG contributions
+   fNBGall = 0;
+
+   if (kSig)
+   {
+      ifstream f(szConfig1);
+      string line1;
+      for (Int_t i = 0; getline(f, line1); i++)
+         fNBGall++;
+      f.clear();
+      f.seekg(0);
+      f.close();
+
+      ifstream g(szConfig2);
+      string line2;
+      for (Int_t i = 0; getline(g, line2); i++)
+         fNBGall++;
+      g.clear();
+      g.seekg(0);
+      g.close();
+   }
+   else
+   {
+      ifstream f(szConfig);
+      string line;
+      for (Int_t i = 0; getline(f, line); i++)
+         fNBGall++;
+      f.clear();
+      f.seekg(0);
+      f.close();
+   }
+
+   // count bg contributions to use
+   fNBG = 0;
+   if (szBG)
+   {
+      for (UInt_t i = 0; i < strlen(szBG); i++)
+         if (szBG[i] == ',') fNBG++;
+      fNBG++;
+   }
+
+   // get bg contributions to use
+   fIBG = new Int_t[fNBG];
+   Int_t pos = 0;
+   if (szBG)
+   {
+      Char_t* tmp;
+      tmp = strtok(szBG, ",");
+      while (tmp != NULL)
+      {
+         fIBG[pos] = atoi(tmp);
+         pos++;
+         tmp = strtok(NULL, ",");
+      }
+   }
+
+   // get background descriptions
+   fIBGall = new Int_t[fNBGall];
+   hNameBGall = new Char_t*[fNBGall];
+  
+   if (kSig)
+   {
+      Int_t n = 0;
+      ifstream f(szConfig1);
+      string line1;
+      for (Int_t i = 0; getline(f, line1); i++)
+      {
+         Char_t tmp[256];
+         sprintf(tmp,"%s",line1.c_str());
+         fIBGall[n] = atoi(strtok(tmp, " "));
+         Char_t* ttmp = strtok(NULL, " ");
+         hNameBGall[n] = new Char_t[128];
+         sprintf(hNameBGall[n],"%s",ttmp);
+         n++;
+      }
+      f.clear();
+      f.seekg(0);
+      f.close();
+      ifstream g(szConfig2);
+      string line2;
+      for (Int_t j = 0; getline(g, line2); j++)
+      {
+         Char_t tmp[256];
+         sprintf(tmp,"%s",line2.c_str());
+         fIBGall[n] = atoi(strtok(tmp, " "));
+         Char_t* ttmp = strtok(NULL, " ");
+         hNameBGall[n] = new Char_t[128];
+         sprintf(hNameBGall[n],"%s",ttmp);
+         n++;
+      }
+      g.clear();
+      g.seekg(0);
+      g.close();
+   }
+   else
+   {
+      ifstream f(szConfig);
+      string line;
+      for (Int_t i = 0; getline(f, line); i++)
+      {
+         Char_t tmp[256];
+         sprintf(tmp,"%s",line.c_str());
+         fIBGall[i] = atoi(strtok(tmp, " "));
+         Char_t* ttmp = strtok(NULL, " ");
+         hNameBGall[i] = new Char_t[128];
+         sprintf(hNameBGall[i],"%s",ttmp);
+      }
+      f.clear();
+      f.seekg(0);
+      f.close();
+   }
+
+   return;
+}
+
+//______________________________________________________________________________
+void TMFit_old::Fit2D(const Char_t* szFit, const Char_t* szMeth,
+                  const Char_t* szParPolE, const Char_t* szParPolCT,
+                  Double_t fmin, Double_t fmax,
+                  Double_t fSmin, Double_t fSmax,
+                  Double_t fSHmin, Double_t fSHmax,
+                  Double_t fGmin, Double_t fGmax,
+                  Double_t fGHmin, Double_t fGHmax,
+                  Double_t fGMmin, Double_t fGMmax,
+                  Double_t fGSmin, Double_t fGSmax,
+                  Int_t fExFunc, Double_t fVal,
+                  Int_t fInt, const Char_t* effName,
+                  Double_t fBR, Double_t fTD)
+{
+   for (Int_t i = 0; i < fc->GetNCosThetaBins(); i++)
+   {
+      TH2** hFit;
+      hFit = new TH2*[fNBG+1];
+
+      TH2* hDat = (TH2*)fc->GetInputDataObject(i);
+      hDat->Rebin2D(1,fRebin);
+      hFit[0] = (TH2*)fc->GetInputSignalObject(i);
+
+      for (Int_t k = 0; k < fc->GetNBackgroundContributions(); k++)
+         hFit[k+1] = (TH2*)fc->GetInputBackgroundObject(i,k);
+
+      for (Int_t k = 0; k < fNBG+1; k++)
+         hFit[k]->Rebin2D(1,fRebin);
+      
+      // fit only with signal first
+      TMFunctor::InitFunctor(1,hFit);
+      TF2* fFitTmp = new TF2(Form("fitTmp2D_%i",i),TMFunctor::MyFitFuncMC2D,
+                             fc->GetEnergy(0),fc->GetEnergy(fc->GetNEnergyBins()),
+                             fmin,fmax,1);
+      Double_t dMax = 1.;
+      if (hFit[0]->GetMaximum()>0.) dMax = hFit[0]->GetMaximum();
+      fFitTmp->SetParameter(0,hDat->GetMaximum()/dMax);
+      hDat->Fit(fFitTmp,szFit,"",fSmin,fSmax);
+      hFit[0]->Scale(fFitTmp->GetParameter(0));
+
+      // fit also with BG contributions now
+      TMFunctor::InitFunctor(fNBG+1,hFit);
+      TF2* fFit = new TF2(Form("fit_%i",i),TMFunctor::MyFitFuncMC2D,
+                          fc->GetEnergy(0),fc->GetEnergy(fc->GetNEnergyBins()),
+                          fmin,fmax,fNBG+1);
+
+      fFit->SetParameter(0,1.);
+      fFit->SetParLimits(0,fSHmin,fSHmax);//1.e-6,1.5*hDat->GetMaximum()/hFit[0]->GetMaximum());
+      for (Int_t k = 0; k < fNBG; k++)
+      {
+         Double_t bMax = 1.;
+         if (hFit[k+1]->GetMaximum()>0.) bMax = hFit[k+1]->GetMaximum();
+         fFit->SetParameter(k+1,hDat->GetMaximum()/bMax);
+         fFit->SetParLimits(k+1,1.e-6,1.5*hDat->GetMaximum()/bMax);
+      }
+
+      hDat->Fit(fFit,szFit);
+      fc->AddFitParameters(i,fFit->GetParameters());
+      fc->AddFitParameterErrors(i,fFit->GetParErrors());
+
+      for (Int_t k = 0; k < fNBG+1; k++)
+         hFit[k]->Scale(fFit->GetParameter(k));
+
+      for (Int_t j = 0; j < fc->GetNEnergyBins(); j++)
+      {
+         TH1D* hDat_p = (TH1D*)hDat->ProjectionY(Form("hDat_p_%i_%i",i,j),j+1,j+1);
+         fc->AddDataObject(i,j,hDat_p);
+
+         TH1* hBGTot = 0;
+         TH1* hTot = 0;
+
+         TH1D* hFitBG[fc->GetNBackgroundContributions()+1];
+
+         for (Int_t k = 0; k < fc->GetNBackgroundContributions()+1; k++)
+         {
+            hFitBG[k] = (TH1D*)hFit[k]->ProjectionY(Form("hFit_p_%i_%i_%i",i,j,k),j+1,j+1);
+            if (k==0)
+            {
+               fc->AddSignalObject(i,j,hFitBG[k]); 
+               hTot = hFitBG[k];
+            }
+            else
+            {
+               fc->AddBackgroundObject(i,j,k-1,hFitBG[k]);
+               hTot->Add(hFitBG[k]);
+               if (k==1) hBGTot = hFitBG[k];
+               else hBGTot->Add(hFitBG[k]);
+            }
+         }
+
+         fc->AddTotalBackgroundObject(i,j,hBGTot);
+         fc->AddTotalObject(i,j,hTot);
+
+         TF1* fGauss = new TF1(Form("fGauss_%i_%i",i,j), "gaus", fGmin, fGmax);
+         fGauss->SetParameters(hFitBG[0]->GetMaximum(),fGMmin+0.5*(fGMmax-fGMmin),fGSmin+0.5*(fGSmax-fGSmin));
+         fGauss->SetParLimits(0,fGHmin*hFitBG[0]->GetMaximum(),fGHmax*hFitBG[0]->GetMaximum());
+         fGauss->SetParLimits(1,fGMmin,fGMmax);
+         fGauss->SetParLimits(2,fGSmin,fGSmax);
+         hFitBG[0]->Fit(fGauss,"+RBQ0M");
+         
+         fc->AddFitObject(i,j,fGauss);
+      }
+   }
+
+   fc->SetParameterGraphs();
+   fc->SetParFitPolynomialEnergy(szParPolE);
+   fc->SetParFitPolynomialCosTheta(szParPolCT);
+   fc->FitParameterGraphEnergy();
+   fc->FitParameterGraphCosTheta();
+   fc->GetCutsFromGaussian();
+
+   if (fExFunc)
+   {
+      fc->SetEfficienciesExFunc(effName);
+      fc->SetIMvalueExFunc(fVal);
+      fc->SetBranchingRatioExFunc(fBR);
+      fc->SetTargetDensityExFunc(fTD);
+      if (fInt) fc->SetIntegrateAllExFunc(kTRUE);
+      fc->CalculateExcitationFunctions();
+   }
+
+   Info("TMFit_old::Fit2D","Finished collection %s",fc->GetName());
+
+   return;
+}
+
+//______________________________________________________________________________
+void TMFit_old::Fit(const Char_t* szFit, const Char_t* szMeth,
+                const Char_t* szParPolE, const Char_t* szParPolCT,
+                Double_t fmin, Double_t fmax, 
+                Double_t fSmin, Double_t fSmax, 
+                Double_t fSHmin, Double_t fSHmax,
+                Double_t fGmin, Double_t fGmax,
+                Double_t fGHmin, Double_t fGHmax,
+                Double_t fGMmin, Double_t fGMmax,
+                Double_t fGSmin, Double_t fGSmax,
+                Int_t fExFunc, Double_t fVal, 
+                Int_t fInt, const Char_t* effName,
+                Double_t fBR, Double_t fTD)
+{
+   Bool_t kEnergy = kTRUE;
+
+   if (!strcmp(szMeth,"E")) 
+      Info("TMFit_old::Fit","Fitting Parameters energy dependent");
+   else
+   {
+      kEnergy = kFALSE;
+      Info("TMFit_old::Fit","Fitting Parameters cos(theta) dependent");
+   }
+
+   for (Int_t i = 0; i < fc->GetNCosThetaBins(); i++)
+   {
+      for (Int_t j = 0; j < fc->GetNEnergyBins(); j++)
+      {
+         TH1** hFit;
+         hFit = new TH1*[fNBG+1];
+
+         TH1* hDat = (TH1*)fc->GetDataObject(i,j);
+         hDat->Rebin(fRebin);
+         hFit[0] = (TH1*)fc->GetSignalObject(i,j);
+
+         for (Int_t k = 0; k < fc->GetNBackgroundContributions(); k++)
+            hFit[k+1] = (TH1*)fc->GetBackgroundObject(i,j,k);
+
+         for (Int_t k = 0; k < fNBG+1; k++)
+            hFit[k]->Rebin(fRebin);
+
+         // fit only with signal first
+         TMFunctor::InitFunctor(1,hFit);
+         TF1* fFitTmp = new TF1(Form("fitTmp_%i_%i",i,j),TMFunctor::MyFitFuncMC,fmin,fmax,1);
+         Double_t dMax = 1.;
+         if (hFit[0]->GetMaximum()>0.) dMax = hFit[0]->GetMaximum();
+         fFitTmp->SetParameter(0,hDat->GetMaximum()/dMax);
+         hDat->Fit(fFitTmp,szFit,"",fSmin,fSmax);
+         hFit[0]->Scale(fFitTmp->GetParameter(0));
+
+         // fit also with BG contributions now
+         TMFunctor::InitFunctor(fNBG+1,hFit);
+         TF1* fFit = new TF1(Form("fit_%i_%i",i,j),TMFunctor::MyFitFuncMC,fmin,fmax,fNBG+1);
+
+         fFit->SetParameter(0,1.);//hDat->GetMaximum()/hFit[0]->GetMaximum());
+         fFit->SetParLimits(0,fSHmin,fSHmax);//1.e-6,1.5*hDat->GetMaximum()/hFit[0]->GetMaximum());
+         for (Int_t k = 0; k < fNBG; k++)
+         {
+            Double_t bMax = 1.;
+            if (hFit[k+1]->GetMaximum()>0.) bMax = hFit[k+1]->GetMaximum();
+            fFit->SetParameter(k+1,hDat->GetMaximum()/bMax);
+            fFit->SetParLimits(k+1,1.e-6,1.5*hDat->GetMaximum()/bMax);
+         }
+
+         hDat->Fit(fFit,szFit);
+         fc->AddFitParameters(i,j,fFit->GetParameters());
+         fc->AddFitParameterErrors(i,j,fFit->GetParErrors());
+
+         TH1* hBGTot = 0;
+         TH1* hTot = 0;
+         for (Int_t k = 0; k < fNBG+1; k++)
+         {
+            hFit[k]->Scale(fFit->GetParameter(k));
+            if (k==0)
+            {
+               fc->AddSignalObject(i,j,hFit[k]);
+               hTot = (TH1*)hFit[k]->Clone(Form("hTot_%i_%i",i,j));
+            }
+            else
+            {
+               fc->AddBackgroundObject(i,j,k-1,hFit[k]);
+               hTot->Add(hFit[k]);
+               if (k==1) hBGTot = (TH1*)hFit[k]->Clone(Form("hBGTot_%i_%i",i,j));
+               else hBGTot->Add(hFit[k]);
+            }
+         }
+
+         fc->AddTotalBackgroundObject(i,j,hBGTot);
+         fc->AddTotalObject(i,j,hTot);
+
+         TF1* fGauss = new TF1(Form("fGauss_%i_%i",i,j), "gaus", fGmin, fGmax);
+         fGauss->SetParameters(hFit[0]->GetMaximum(),fGMmin+0.5*(fGMmax-fGMmin),fGSmin+0.5*(fGSmax-fGSmin));
+         fGauss->SetParLimits(0,fGHmin*hFit[0]->GetMaximum(),fGHmax*hFit[0]->GetMaximum());
+         fGauss->SetParLimits(1,fGMmin,fGMmax);
+         fGauss->SetParLimits(2,fGSmin,fGSmax);
+         hFit[0]->Fit(fGauss,"+RBQ0M");
+         
+         fc->AddFitObject(i,j,fGauss);
+      }
+   }
+   fc->SetParameterGraphs();
+   fc->SetParFitPolynomialEnergy(szParPolE);
+   fc->SetParFitPolynomialCosTheta(szParPolCT);
+   fc->FitParameterGraphEnergy();
+   fc->FitParameterGraphCosTheta();
+   fc->GetCutsFromGaussian();
+
+   if (fExFunc)
+   {
+      fc->SetEfficienciesExFunc(effName);
+      fc->SetIMvalueExFunc(fVal);
+      fc->SetBranchingRatioExFunc(fBR);
+      fc->SetTargetDensityExFunc(fTD);
+      if (fInt) fc->SetIntegrateAllExFunc(kTRUE);
+      fc->CalculateExcitationFunctions();
+   }
+
+   Info("TMFit_old::Fit","Finished collection %s",fc->GetName());
+
+   return;
+}
+
+//______________________________________________________________________________
+void TMFit_old::DrawFit(Int_t iNPadX, Int_t iNPadY, Int_t iNDC)
+{
+   Char_t szName[256];
+   Char_t szzName[256];
+
+   Int_t iNPad = iNPadX*iNPadY;
+   Int_t nCTbin = fc->GetNCosThetaBins();
+   Int_t nTCbin = fc->GetNEnergyBins();
+
+   for (Int_t i = 0; i < nCTbin; i++)
+   {
+      TCanvas* c = 0;
+      TPad* p[nTCbin];
+
+      for (Int_t j = 0; j < nTCbin; j++)
+      {
+         if (j%iNPad == 0)
+         {
+            if (j+iNPad>nTCbin)
+            {
+               sprintf(szName, "%s_CT_%i_E_%i_to_%i",     fc->GetName(), i+1, j+1, nTCbin);
+               sprintf(szzName,"%s_CT_%i_E_%i_to_%i.eps", fc->GetName(), i+1, j+1, nTCbin);
+
+               Info("TMFit_old::DrawFit","Created Pads for CTbin %i TCbin %i to %i",i+1,j+1,nTCbin);
+            }
+            else
+            {
+               sprintf(szName, "%s_CT_%i_E_%i_to_%i",     fc->GetName(), i+1, j+1, j+iNPad);
+               sprintf(szzName,"%s_CT_%i_E_%i_to_%i.eps", fc->GetName(), i+1, j+1, j+iNPad);
+
+               Info("TMFit_old::DrawFit","Created Pads for CTbin %i TCbin %i to %i",i+1,j+1,j+iNPad);
+            }
+
+            c = new TCanvas(szName,szName,1000,1000);
+         }
+
+         c->cd();
+
+         sprintf(szName,"IM_CT_%i_TC_%i",i+1,j+1);
+         p[j] = new TPad(szName, szName, 0.15+(j%iNPadX)*0.8/iNPadX, 0.9125-((j%iNPad)/iNPadX+1)*0.8/iNPadY, 0.15+(j%iNPadX+1)*0.8/iNPadX, 0.9125-((j%iNPad)/iNPadX)*0.8/iNPadY);
+
+         p[j]->SetLeftMargin(0);
+         p[j]->SetRightMargin(0);
+         p[j]->SetTopMargin(0);
+         p[j]->SetBottomMargin(0);
+
+         p[j]->Draw();
+         p[j]->cd();
+
+         fc->Draw(i,j,0);
+
+         if (j%iNPad == iNPad-1 || j == nTCbin-1)
+         {
+            c->cd();
+
+            TGaxis* aX = 0;
+
+            for (Int_t l = 0; l < iNPadX; l++)
+            {
+               aX = new TGaxis(0.15+l*0.8/iNPadX,
+                                       0.9125-((j%iNPad)/iNPadX+1)*0.8/iNPadY,
+                                       0.15+(l+1)*0.8/iNPadX,
+                                       0.9125-((j%iNPad)/iNPadX+1)*0.8/iNPadY,
+                                       -1000.,
+                                       1000.,
+                                       iNDC,"-");
+               aX->SetLabelSize(.03);
+               aX->SetLabelOffset(-.03);
+               aX->SetLabelFont(42);
+               aX->Draw();
+            }
+
+            TLine aLine;
+            aLine.DrawLineNDC(0.95,0.9125-((j%iNPad)/iNPadX+1)*0.8/iNPadY,0.95,0.9125);
+
+            TLatex title;
+            title.SetTextAlign(22);
+            title.SetTextSize(0.05);
+            title.DrawLatex(0.15+0.4,0.5*(0.1125-aX->GetLabelSize())+(iNPadY-((j%iNPad)/iNPadX+1))*0.8/iNPadY,"#font[41]{M_{X}-M_{N} [MeV]}");
+            sprintf(szName,"#font[41]{%2.1f < cos(#theta) < %2.1f}",fc->GetLowerCosTheta(i),fc->GetUpperCosTheta(i));
+            title.DrawLatex(0.15+0.4,0.95,szName);
+            title.SetTextSize(0.05);
+            title.SetTextAngle(90);
+            title.DrawLatex(0.5*0.15,0.9125-0.5*((j%iNPad)/iNPadX+1)/iNPadY*0.8,"#font[41]{Counts [a.u.]}");
+
+            c->Write();
+
+//            c->Print(szzName);
+         }
+      }
+   }
+
+   Info("TMFit_old::DrawFit","Fits drawn");
+
+   return;
+}
+
+//______________________________________________________________________________
+//void TMFit_old::SaveCuts()
+//{
+//   for (Int_t i = 0; i < fNCTbins; i++)
+//   {
+//      fe->SetMeanGraph(i,(TGraphErrors*)fc->GetMeanCutGraph(i));
+//      fe->SetSigmaGraph(i,(TGraphErrors*)fc->GetSigmaCutGraph(i));
+//      fe->SetLowerGraph(i,(TGraphErrors*)fc->GetLowerCutGraph(i));
+//      fe->SetUpperGraph(i,(TGraphErrors*)fc->GetUpperCutGraph(i));
+//      fe->SetMeanFunction(i,(TF1*)fc->GetMeanCutFunc(i));
+//      fe->SetSigmaFunction(i,(TF1*)fc->GetSigmaCutFunc(i));
+//      fe->SetLowerFunction(i,(TF1*)fc->GetLowerCutFunc(i));
+//      fe->SetUpperFunction(i,(TF1*)fc->GetUpperCutFunc(i));
+//   }
+//   
+//   Info("TMFit_old::SaveCuts","Saved all cuts");
+//
+//   return;
+//}
+
+//______________________________________________________________________________
+void TMFit_old::DrawCutRegions()
+{
+   for (Int_t i = 0; i < fNCTbins; i++)
+   {
+      TCanvas* c = new TCanvas(Form("Data_CT_%i",i),Form("Data_CT_%i",i),1000,1000);
+      c->cd();
+      fc->DrawInputData(i);
+      fc->DrawCuts(i);
+
+      c->Update();
+      c->Write();
+      delete c;
+
+      TCanvas* d = new TCanvas(Form("Signal_CT_%i",i),Form("Signal_CT_%i",i),1000,1000);
+      d->cd();
+      fc->DrawInputSignal(i);
+      fc->DrawCuts(i);
+
+      d->Update();
+      d->Write();
+      delete d;
+   }
+
+   Info("TMFit_old::DrawCutRegions","Cut regions (CT) drawn");
+
+   for (Int_t i = 0; i < fc->GetNEnergyBins(); i++)
+   {
+      TCanvas* c = new TCanvas(Form("Data_E_%i",i),Form("Data_E_%i",i),1000,1000);
+      c->cd();
+      fc->DrawInputDataCT(i);
+      fc->DrawCutsCT(i);
+
+      c->Update();
+      c->Write();
+      delete c;
+
+      TCanvas* d = new TCanvas(Form("Signal_E_%i",i),Form("Signal_E_%i",i),1000,1000);
+      d->cd();
+      fc->DrawInputSignalCT(i);
+      fc->DrawCutsCT(i);
+
+      d->Update();
+      d->Write();
+      delete d;
+   }
+
+   Info("TMFit_old::DrawCutRegions","Cut regions (E) drawn");
+
+
+   return;
+}
+
+//______________________________________________________________________________
+void TMFit_old::DrawFitParameters(Bool_t kFit)
+{
+   for (Int_t k = 0; k < fNBG+1; k++)
+   {
+      // parameters as function of energy
+      TCanvas* c = new TCanvas(Form("fit_par_%i_CT",k),Form("fit_par_%i_CT",k),1000,1000);
+      Int_t nx = floor(TMath::Sqrt(fc->GetNCosThetaBins()));
+      Int_t ny = ceil(TMath::Sqrt(fc->GetNCosThetaBins()));
+      c->Divide(nx,ny,0.0001,0.0001);
+
+      for (Int_t i = 0; i < fc->GetNCosThetaBins(); i++)
+      {
+         c->cd(i+1);
+         fc->DrawParametersCT(i,k,kFit);
+      }
+
+      c->Update();
+      c->Write();
+      delete c;
+
+      // parameters as function of ct
+      TCanvas* d = new TCanvas(Form("fit_par_%i_E",k),Form("fit_par_%i_E",k),1000,1000);
+      nx = floor(TMath::Sqrt(fc->GetNEnergyBins()));
+      ny = ceil(TMath::Sqrt(fc->GetNEnergyBins()));
+      d->Divide(nx,ny,0.0001,0.0001);
+
+      for (Int_t i = 0; i < fc->GetNEnergyBins(); i++)
+      {
+         d->cd(i+1);
+         fc->DrawParametersE(i,k,kFit);
+      }
+
+      d->Update();
+      d->Write();
+      delete d;
+   }
+
+   Info("TMFit_old::DrawFitParameters","Fit parameters drawn");
+
+   return;
+}
+
+//______________________________________________________________________________
+void TMFit_old::Print()
+{
+   // print fit compilations
+   Printf("#===========================================");
+   Printf("# TMFit_old: Settings");
+   Printf("#===========================================");
+   Printf("#");
+   Printf("#   Histogram Name:    %s", hName);
+   Printf("#   Number of CT Bins: %i", fNCTbins);
+   Printf("#");
+   Printf("#   Number of MC BG contributions: %i(%i)", fNBG, fNBGall);
+   for (Int_t i = 0; i < fNBGall; i++)
+   {
+      Bool_t kFound = kFALSE;
+      for (Int_t j = 0; j < fNBG; j++)
+         if (fIBGall[i]==fIBG[j])
+            kFound = kTRUE;
+      if (kFound)
+         Printf("#                               %i: %s",i , hNameBGall[i]);
+      else
+         Printf("#                               %i: %s (omitted)",i , hNameBGall[i]);
+   }
+   Printf("#");
+   Printf("#===========================================");
+   Printf("#");
+   Printf("#   Par: Fit Polynom Energy dependent:     %s", fc->GetParFitPolynomialEnergy());
+   Printf("#   Par: Fit Polynom cos(theta) dependent: %s", fc->GetParFitPolynomialCosTheta());
+   Printf("#");
+   Printf("#===========================================");
+   Printf("#");
+   Printf("#   Cut: Fit Mean Polynom:        %s", fc->GetFitMeanPolynomial());
+   Printf("#   Cut: Fit Sigma Polynom:       %s", fc->GetFitSigmaPolynomial());
+   Printf("#   Cut: Fit Lower Polynom:       %s", fc->GetFitLowerPolynomial());
+   Printf("#   Cut: Fit Upper Polynom:       %s", fc->GetFitUpperPolynomial());
+   Printf("#   Cut: Fit Sigma:               %2.1f", fc->GetFitSigma());
+   Printf("#   Cut: Fit Range:               [%4.0f,%4.0f]", fc->GetFitMin(), fc->GetFitMax());
+   printf("#   Cut: Fit Lower Boundaries: [");
+   for (Int_t i = 0; i < fNCTbins; i++)
+      printf("%4.0f, ",fc->GetFitLowerBoundary(i));
+   printf("%4.0f]\n",fc->GetFitLowerBoundary(fNCTbins-1));
+   printf("#   Cut: Fit Upper Boundaries: [");
+   for (Int_t i = 0; i < fNCTbins; i++)
+      printf("%4.0f, ",fc->GetFitUpperBoundary(i));
+   printf("%4.0f]\n",fc->GetFitUpperBoundary(fNCTbins-1));
+   Printf("#");
+   Printf("#===========================================");
+
+   return;
+}
+
+//______________________________________________________________________________
+void TMFit_old::SaveAll(const Char_t* szName)
+{
+    // init output file
+    TFile* fOut = new TFile(Form("%s.root",szName),"recreate");
+
+    fOut->cd();
+    this->DrawFit(3,3,504);
+    fOut->cd();
+    this->DrawFitParameters(kTRUE);
+    fOut->cd();
+    this->DrawCutRegions();
+    fOut->cd();
+    fc->Write();
+    
+    fe = (TOEnergyThetaCut*)fc->GetCutObject();
+    fe->Write();
+
+    for (Int_t i = 0; i < fNCTbins; i++)
+    {
+       TH2F* h = (TH2F*)fc->GetExcitationFunction(i);
+       h->Write();
+    }
+
+    fOut->Close();
+
+    return;    
+}
+//______________________________________________________________________________

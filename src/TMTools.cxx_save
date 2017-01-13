@@ -1,0 +1,220 @@
+/*************************************************************************
+ * Author: Dominik Werthmueller, 2008-2009
+ *************************************************************************/
+
+//////////////////////////////////////////////////////////////////////////
+//                                                                      //
+// TOTools                                                               //
+//                                                                      //
+// Class representing an energy bin.                                    //
+//                                                                      //
+//////////////////////////////////////////////////////////////////////////
+
+
+#include "TOTools.h"
+
+//______________________________________________________________________________
+void TOTools::DrawHistoCollection(const Char_t* szFile, const Char_t* szColl, Int_t iNPadX, Int_t iNPadY, Int_t iNDC)
+{
+   Char_t szName[256];
+   Char_t szzName[256];
+
+   Int_t iNPad = iNPadX*iNPadY;
+
+   sprintf(szName,"%s.root",szFile);
+   TFile* f = new TFile(szName);
+   sprintf(szName,"Plot_%s.root",szFile);
+   TFile* g = new TFile(szName,"recreate");
+
+   sprintf(szName,"%s_1_1_1",szColl);
+   Int_t nCTbin = ((TOHistoCollection*)f->Get(szName))->GetNCTBins();
+   Int_t nTCbin = ((TOHistoCollection*)f->Get(szName))->GetNTaggerChannels();
+   Int_t nMMbin = ((TOHistoCollection*)f->Get(szName))->GetNMMBins();
+
+   for (Int_t i = 0; i < nCTbin; i++)
+   {
+      for (Int_t j = 0; j < nTCbin; j++)
+      {
+         TCanvas* c = 0;
+         TPad* p[nMMbin];
+
+         for (Int_t k = 0; k < nMMbin; k++)
+         {
+//            printf("outside k: %i\n",k);
+            if (k%iNPad == 0)
+            {
+//            printf("inside k: %i\n",k);
+               if (k+iNPad>nMMbin)
+               {
+                  sprintf(szName, "IM_CT_%i_TC_%i_MM_%i_to_%i",     i+1, j+1, k+1, nMMbin);
+                  sprintf(szzName,"IM_CT_%i_TC_%i_MM_%i_to_%i.eps", i+1, j+1, k+1, nMMbin);
+
+                  printf("Created Pads for CTbin %i TCbin %i and MMbin %i to %i\n",i+1,j+1,k+1,nMMbin);
+               }
+               else
+               {
+                  sprintf(szName, "IM_CT_%i_TC_%i_MM_%i_to_%i",     i+1, j+1, k+1, k+iNPad);
+                  sprintf(szzName,"IM_CT_%i_TC_%i_MM_%i_to_%i.eps", i+1, j+1, k+1, k+iNPad);
+
+                  printf("Created Pads for CTbin %i TCbin %i and MMbin %i to %i\n",i+1,j+1,k+1,k+iNPad);
+               }
+
+               c = new TCanvas(szName,szName,1000,1000);
+            }
+
+            c->cd();
+
+            sprintf(szName,"IM_CT_%i_TC_%i_MM_%i",i+1,j+1,k+1);
+            p[k] = new TPad(szName, szName, 0.15+(k%iNPadX)*0.8/iNPadX, 0.9125-((k%iNPad)/iNPadY+1)*0.8/iNPadY, 0.15+(k%iNPadX+1)*0.8/iNPadX, 0.9125-((k%iNPad)/iNPadY)*0.8/iNPadY);
+
+            p[k]->SetLeftMargin(0);
+            p[k]->SetRightMargin(0);
+            p[k]->SetTopMargin(0);
+            p[k]->SetBottomMargin(0);
+
+            p[k]->Draw();
+            p[k]->cd();
+
+            sprintf(szName,"%s_%i_%i_%i",szColl,i+1,j+1,k+1);
+            TOHistoCollection* hc = (TOHistoCollection*)f->Get(szName);
+            hc->Draw();
+//            hc->GetBackgroundHisto()->Draw();
+//            hc->GetSignal1Histo()->Draw("same");
+//            hc->GetSignal2Histo()->Draw("same");
+//            hc->GetTotalHisto()->Draw("same");
+//            hc->GetDataHisto()->Draw("same");
+
+            if (k%iNPad == iNPad-1 || k == nMMbin-1)
+            {
+               c->cd();
+   
+               TGaxis* aX = 0;
+   
+               for (Int_t l = 0; l < iNPadX; l++)
+               {
+                  aX = new TGaxis(0.15+l*0.8/iNPadX,
+                                          0.9125-((k%iNPad)/iNPadY+1)*0.8/iNPadY,
+                                          0.15+(l+1)*0.8/iNPadX,
+                                          0.9125-((k%iNPad)/iNPadY+1)*0.8/iNPadY,
+                                          0.*0.95,
+                                          300.*0.95,
+//                                          ((TH1*)hc->GetBackgroundHisto())->GetXaxis()->GetBinLowEdge(1)*0.95,
+//                                          ((TH1*)hc->GetBackgroundHisto())->GetXaxis()->GetBinUpEdge(((TH1*)hc->GetBackgroundHisto())->GetNbinsX())*0.95,
+                                          iNDC,"-");
+                  aX->SetLabelSize(.03);
+                  aX->SetLabelOffset(-.03);
+                  aX->SetLabelFont(42);
+                  aX->Draw();
+               }
+   
+               TLine aLine;
+               aLine.DrawLineNDC(0.95,0.9125-((k%iNPad)/iNPadY+1)*0.8/iNPadY,0.95,0.9125);
+   
+               TLatex title;
+               title.SetTextAlign(22);
+               title.SetTextSize(0.05);
+               title.DrawLatex(0.15+0.4,0.5*(0.1125-aX->GetLabelSize())+(iNPadY-((k%iNPad)/iNPadY+1))*0.8/iNPadY,"#font[41]{M_{#gamma#gamma} [MeV]}");
+               title.SetTextSize(0.05);
+               title.SetTextAngle(90);
+               title.DrawLatex(0.5*0.15,0.9125-0.5*((k%iNPad)/iNPadY+1)/iNPadY*0.8,"#font[41]{Counts [a.u.]}");
+
+               g->cd();
+               c->Write();
+
+//               delete c;
+//               delete aX;
+            }
+
+//            delete [] p;
+         }
+      }
+   }
+
+   f->Close();
+   g->Close();
+
+   return;
+}
+
+//______________________________________________________________________________
+void TOTools::GetSBfromHistoCollection(const Char_t* szFile, const Char_t* szMM, const Char_t* szColl)
+{
+   Char_t szName[256];
+   Char_t szzName[256];
+
+   sprintf(szName,"%s.root",szFile);
+   TFile* f = new TFile(szName);
+   sprintf(szName,"MM_SB_%s.root",szFile);
+   TFile* g = new TFile(szName,"recreate");
+
+   sprintf(szName,"%s_1_1_1",szColl);
+   Int_t nCTbin = ((TOHistoCollection*)f->Get(szName))->GetNCTBins();
+   Int_t nTCbin = ((TOHistoCollection*)f->Get(szName))->GetNTaggerChannels();
+   Int_t nMMbin = ((TOHistoCollection*)f->Get(szName))->GetNMMBins();
+
+   for (Int_t i = 0; i < nCTbin; i++)
+   {
+      for (Int_t j = 0; j < nTCbin; j++)
+      {
+         sprintf(szName,"%s_%i_%i",szMM,i+1,j+1);
+         sprintf(szzName,"hMM_%i_%i",i+1,j+1);
+         TH1D* hMM = (TH1D*)f->Get(szName)->Clone(szzName);
+         sprintf(szzName,"hMMsb_%i_%i",i+1,j+1);
+         TH1D* hMMsb = (TH1D*)f->Get(szName)->Clone(szzName);
+         sprintf(szName,"hSB_%i_%i",i+1,j+1);
+         TH1D* hSB = new TH1D(szName,szName,hMM->GetNbinsX(),hMM->GetXaxis()->GetBinLowEdge(1),hMM->GetXaxis()->GetBinUpEdge(hMM->GetNbinsX()));
+
+         for (Int_t k = 0; k < nMMbin; k++)
+         {
+            sprintf(szName,"%s_%i_%i_%i",szColl,i+1,j+1,k+1);
+            TOHistoCollection* hc = (TOHistoCollection*)f->Get(szName);
+
+            Double_t fSige = 0.;
+            Double_t fTote = 0.;
+
+            Double_t fSig = ((TH1*)hc->GetSignal2Histo())->IntegralAndError(1,((TH1*)hc->GetSignal2Histo())->GetNbinsX(),fSige);
+            Double_t fTot = ((TH1*)hc->GetTotalHisto())->IntegralAndError(1,((TH1*)hc->GetTotalHisto())->GetNbinsX(),fTote);
+
+            Double_t fSB = 0.;
+            Double_t fSBe = 0.;
+
+            if (fTot == 0. || fSig == 0.)
+            {
+               fSB = 0.;
+               fSBe = 0.;
+            }
+            else
+            {
+               fSB = fSig/fTot;
+               fSBe = TMath::Sqrt(TMath::Power(fSig/fTot/fTot*fTote,2.) + TMath::Power(fSige/fTot,2.));
+            }
+
+//            printf("CTbin %i TCbin %i MMbin %i - SB %5.3f SBe: %5.3f\n",i+1,j+1,k+1,fSB,fSBe);
+
+            hSB->SetBinContent(k+1,fSB);
+            hSB->SetBinError(k+1,fSBe);
+
+            delete hc;
+         }
+
+         hMMsb->Multiply(hSB);
+         g->cd();
+         hMM->Write();
+         hSB->Write();
+         hMMsb->Write();
+
+         delete hSB;
+         delete hMM;
+         delete hMMsb;
+
+         printf("Corrected MM histo of CTbin %i and TCbin %i\n",i+1,j+1);
+      }
+   }
+
+   f->Close();
+   g->Close();
+
+   return;
+}
+
+//______________________________________________________________________________

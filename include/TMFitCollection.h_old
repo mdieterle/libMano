@@ -1,0 +1,282 @@
+/*************************************************************************
+ * Author: Manuel Dieterle, 2012
+ *************************************************************************/
+
+//////////////////////////////////////////////////////////////////////////
+//                                                                      //
+// TMFitCollection_old                                                   //
+//                                                                      //
+// Class for collecting any kind of TObjects                            //
+//                                                                      //
+//////////////////////////////////////////////////////////////////////////
+
+
+#ifndef myTMFitCollection_old
+#define myTMFitCollection_old
+
+#include <cstdlib>
+#include "TNamed.h"
+#include "TH1.h"
+#include "TH2.h"
+#include "TF1.h"
+#include "TLine.h"
+#include "TLatex.h"
+#include "TGraphErrors.h"
+#include "TMath.h"
+#include "TOEnergyThetaCut.h"
+#include "TOEnergyThetaData.h"
+
+class TMFitCollection_old : public TNamed
+{
+
+protected:
+    Int_t fNBG;                             // size of BG array
+    Int_t fNCTbins;                         // # CTbins
+    Int_t fNEbins;                          // # Ebins
+
+    TObject**   oDatIn;                     // [fNCTbins] input data object
+    TObject**   oSigIn;                     // [fNCTbins] input sig object
+    TObject***  oBGIn;                      // [fNCTbins][fNBG] input sig object
+    TObject***  oDat;                       // [fNCTbins][fNEbins] data object
+    TObject***  oSig;                       // [fNCTbins][fNEbins] sig object
+    TObject**** oBG;                        // [fNCTbins][fNEbins][fNBG] bg object
+    TObject***  oBGTot;                     // [fNCTbins][fNEbins] total bg object
+    TObject***  oTot;                       // [fNCTbins][fNEbins] total object
+    TObject***  oFit;                       // [fNCTbins][fNEbins] fit func
+    Double_t*   fEnergy;                    // [fNEbins] energy values
+    Double_t*   fCTlo;                      // [fNCTbins] lower CT values
+    Double_t*   fCTup;                      // [fNCTbins] upper CT values
+    Double_t*** fPar;                       // [fNCTbins][fNEbins][fNBG+1] fit parameters
+    Double_t*** fParE;                      // [fNCTbins][fNEbins][fNBG+1] fit parameter errors
+    TF1***     fFitCT;                      // [fNCTbins][fNBG+1] parameter fit
+    TF1***     fFitE;                       // [fNEbins][fNBG+1] parameter fit error
+
+    TGraphErrors*** gParCT;                 // [fNCTbins][fNBG+1] fit parameter graphs for CT
+    TGraphErrors*** gParE;                  // [fNEbins][fNBG+1] fit parameter graphs for E
+    TGraphErrors**  gCutMean;               // [fNCTbins] mean fit graphs for cut
+    TGraphErrors**  gCutSigma;              // [fNCTbins] sigma fit graphs for cut
+    TGraphErrors**  gCutLow;                // [fNCTbins] lower fit graphs for cut
+    TGraphErrors**  gCutUpp;                // [fNCTbins] upper fit graphs for cut
+    TGraphErrors**  gCutMeanCT;             // [fNEbins] mean fit graphs for cut
+    TGraphErrors**  gCutSigmaCT;            // [fNEbins] sigma fit graphs for cut
+    TGraphErrors**  gCutLowCT;              // [fNEbins] lower fit graphs for cut
+    TGraphErrors**  gCutUppCT;              // [fNEbins] upper fit graphs for cut
+
+    TH2F* hIMref;                           // reference ExFunc histogram
+    Bool_t kAll;                            // ExFunc integration boolean
+    Double_t fIM;                           // ExFunc invariant mass value
+    Double_t fBR;                           // ExFunc Branching Ratio value
+    Double_t fTD;                           // ExFunc Target Density value
+    TOEnergyThetaData* eff;                 // efficiency data
+    TH2F** hIM;                             // [fNCTbins] ExFunc histograms
+
+    TF1** fCutMean;                         // [fNCTbins] mean fit func for cut
+    TF1** fCutSigma;                        // [fNCTbins] sigma fit func for cut
+    TF1** fCutLow;                          // [fNCTbins] lower fit func for cut
+    TF1** fCutUpp;                          // [fNCTbins] upper fit func for cut
+    TF1** fCutMeanCT;                       // [fNEbins] mean fit func for cut
+    TF1** fCutSigmaCT;                      // [fNEbins] sigma fit func for cut
+    TF1** fCutLowCT;                        // [fNEbins] lower fit func for cut
+    TF1** fCutUppCT;                        // [fNEbins] upper fit func for cut
+
+    const Char_t* szPolMean;                // fit polynomial for mean cut region
+    const Char_t* szPolSigma;               // fit polynomial for sigma cut region
+    const Char_t* szPolLow;                 // fit polynomial for lower cut region
+    const Char_t* szPolUpp;                 // fit polynomial for upper cut region
+    const Char_t* szPolMeanCT;              // fit polynomial for mean cut region
+    const Char_t* szPolSigmaCT;             // fit polynomial for sigma cut region
+    const Char_t* szPolLowCT;               // fit polynomial for lower cut region
+    const Char_t* szPolUppCT;               // fit polynomial for upper cut region
+    const Char_t* szPolE;                   // fit polynomial for parameters as function of CT
+    const Char_t* szPolCT;                  // fit polynomial for parameters as function of E
+
+    Double_t fMin;                          // fit start value
+    Double_t fMax;                          // fit end value
+    Double_t* fLow;                         // [fNCTbins] lower fit range
+    Double_t* fUpp;                         // [fNCTbins] upper fit range
+    Double_t fSigma;                        // sigma value for fit
+
+    TOEnergyThetaCut* eCut;                 // cut object
+
+public:
+    TMFitCollection_old() : TNamed(), fNBG(0), fNCTbins(0), fNEbins(0), 
+                          oDatIn(0), oSigIn(0), oBGIn(0), oDat(0), 
+                          oSig(0), oBG(0), oBGTot(0),
+                          oTot(0), oFit(0), fEnergy(0), fCTlo(0), fCTup(0), 
+                          fPar(0), fParE(0), fFitCT(0), fFitE(0), 
+                          gParCT(0), gParE(0), gCutMean(0), gCutSigma(0), 
+                          gCutLow(0), gCutUpp(0), gCutMeanCT(0), gCutSigmaCT(0),
+                          gCutLowCT(0), gCutUppCT(0),hIMref(0), kAll(0),
+                          fIM(0), fBR(0), fTD(0), eff(0), hIM(0), 
+                          fCutMean(0), fCutSigma(0), fCutLow(0), fCutUpp(0),
+                          fCutMeanCT(0), fCutSigmaCT(0), fCutLowCT(0), fCutUppCT(0),
+                          szPolMean(0), szPolSigma(0), szPolLow(0), szPolUpp(0),
+                          szPolMeanCT(0), szPolSigmaCT(0), szPolLowCT(0), szPolUppCT(0),
+                          szPolE(0), szPolCT(0), 
+                          fMin(0), fMax(0), fLow(0), fUpp(0), fSigma(0), eCut(0) { }
+    TMFitCollection_old(const Char_t* szName, const Char_t* szTitle,
+                    const Int_t nEbin, const Int_t nCTbin, const Int_t nBG);
+    TMFitCollection_old(const Char_t* szName, const Char_t* szTitle);
+    virtual ~TMFitCollection_old();
+
+    void InitObjects();
+    void Print();
+
+    void SetDimensions(Int_t ne, Int_t nc, Int_t nb);
+    void SetEnergy(Int_t ne, Double_t e){ fEnergy[ne] = e; }
+    void SetLowerCosTheta(Int_t nc, Double_t c){ fCTlo[nc] = c; }
+    void SetUpperCosTheta(Int_t nc, Double_t c){ fCTup[nc] = c; }
+    void SetParFitPolynomialEnergy(const Char_t* szPol ){ szPolE = szPol; }
+    void SetParFitPolynomialCosTheta(const Char_t* szPol ){ szPolCT = szPol; }
+    void SetFitLowerBoundary(Double_t v, Char_t* lo);
+    void SetFitUpperBoundary(Double_t v, Char_t* up);
+    void SetFitMeanPolynomial(const Char_t* pol){ szPolMean = pol; }
+    void SetFitSigmaPolynomial(const Char_t* pol){ szPolSigma = pol; }
+    void SetFitLowerPolynomial(const Char_t* pol){ szPolLow = pol; }
+    void SetFitUpperPolynomial(const Char_t* pol){ szPolUpp = pol; }
+    void SetFitMeanPolynomialCT(const Char_t* pol){ szPolMeanCT = pol; }
+    void SetFitSigmaPolynomialCT(const Char_t* pol){ szPolSigmaCT = pol; }
+    void SetFitLowerPolynomialCT(const Char_t* pol){ szPolLowCT = pol; }
+    void SetFitUpperPolynomialCT(const Char_t* pol){ szPolUppCT = pol; }
+    void SetFitSigma(Double_t s){ fSigma = s; }
+    void SetReferenceExFunc(TH2F* h){ hIMref = h; }
+    void SetIMvalueExFunc(Double_t f){ fIM = f; }
+    void SetIntegrateAllExFunc(Bool_t b){ kAll = b; }
+    void SetEfficienciesExFunc(const Char_t* szEff){ TFile* f = new TFile(szEff); eff = (TOEnergyThetaData*)f->Get("eff"); }
+    void SetBranchingRatioExFunc(Double_t f){ fBR = f; }
+    void SetTargetDensityExFunc(Double_t f){ fTD = f; }
+
+    void AddInputDataObject(Int_t ct, TObject* o);
+    void AddInputSignalObject(Int_t ct, TObject* o);
+    void AddInputBackgroundObject(Int_t ct, Int_t b, TObject* o);
+    void AddDataObject(Int_t ct, Int_t e, TObject* o);
+    void AddSignalObject(Int_t ct, Int_t e, TObject* o);
+    void AddBackgroundObject(Int_t ct, Int_t e, Int_t b, TObject* o);
+    void AddTotalBackgroundObject(Int_t ct, Int_t e, TObject* o);
+    void AddTotalObject(Int_t ct, Int_t e, TObject* o);
+    void AddFitObject(Int_t ct, Int_t e, TObject* o);
+    void AddFitParameters(Int_t ct, Int_t e, Double_t* p);
+    void AddFitParameters(Int_t ct, Double_t* p);
+    void AddFitParameterErrors(Int_t ct, Int_t e, Double_t* pe);
+    void AddFitParameterErrors(Int_t ct, Double_t* pe);
+    void AddFitFunctionCT(Int_t ct, Int_t bg, TF1* f);
+    void AddFitFunctionE(Int_t e, Int_t bg, TF1* f);
+    void AddFitGraphCT(Int_t ct, Int_t bg, TGraphErrors* p);
+    void AddFitGraphE(Int_t e, Int_t bg, TGraphErrors* p);
+    void AddMeanCutGraph(Int_t ct, TGraphErrors* g);
+    void AddSigmaCutGraph(Int_t ct, TGraphErrors* g);
+    void AddMeanCutFunc(Int_t ct, TF1* f);
+    void AddSigmaCutFunc(Int_t ct, TF1* f);
+    void AddLowerCutGraph(Int_t ct, TGraphErrors* g);
+    void AddUpperCutGraph(Int_t ct, TGraphErrors* g);
+    void AddLowerCutFunc(Int_t ct, TF1* f);
+    void AddUpperCutFunc(Int_t ct, TF1* f);
+    void AddMeanCutGraphCT(Int_t e, TGraphErrors* g);
+    void AddSigmaCutGraphCT(Int_t e, TGraphErrors* g);
+    void AddMeanCutFuncCT(Int_t e, TF1* f);
+    void AddSigmaCutFuncCT(Int_t e, TF1* f);
+    void AddLowerCutGraphCT(Int_t e, TGraphErrors* g);
+    void AddUpperCutGraphCT(Int_t e, TGraphErrors* g);
+    void AddLowerCutFuncCT(Int_t e, TF1* f);
+    void AddUpperCutFuncCT(Int_t e, TF1* f);
+
+    void AddInputDataObjects(TObject** o);
+    void AddInputSignalObjects(TObject** o);
+    void AddInputBackgroundObjects(TObject*** o);
+    void AddDataObjects(TObject*** o);
+    void AddSignalObjects(TObject*** o);
+    void AddBackgroundObjects(TObject**** o);
+    void AddTotalBackgroundObjects(TObject*** o);
+    void AddTotalObjects(TObject*** o);
+    void AddFitObjects(TObject*** o);
+    void AddCutObject(TOEnergyThetaCut* c);
+
+    void SetParameterGraphs();
+    Double_t* GetFitParameterEnergy(Int_t ct, Int_t e);
+    Double_t* GetFitParameterCosTheta(Int_t ct, Int_t e);
+    void FitParameterGraphEnergy();
+    void FitParameterGraphCosTheta();
+    void Draw(Int_t ct, Int_t e, Double_t rLo = 9999., Double_t rUp = 9999., Bool_t kTit = kTRUE);
+    void DrawInputData(Int_t ct);
+    void DrawInputDataCT(Int_t e);
+    void DrawInputSignal(Int_t ct);
+    void DrawInputSignalCT(Int_t e);
+    void DrawParametersCT(Int_t ct, Int_t bg, Bool_t kFit);
+    void DrawParametersE(Int_t e, Int_t bg, Bool_t kFit);
+    void DrawCuts(Int_t ct);
+    void DrawCutsCT(Int_t e);
+
+    Int_t GetNCosThetaBins() { return fNCTbins; }
+    Int_t GetNEnergyBins() { return fNEbins; }
+    Int_t GetNBackgroundContributions() { return fNBG; }
+
+    Double_t GetEnergy(Int_t e){ return fEnergy[e]; }
+    Double_t GetLowerCosTheta(Int_t ct){ return fCTlo[ct]; }
+    Double_t GetUpperCosTheta(Int_t ct){ return fCTup[ct]; }
+    const Char_t* GetParFitPolynomialEnergy(){ return szPolE; }
+    const Char_t* GetParFitPolynomialCosTheta(){ return szPolCT; }
+    Double_t GetFitMin(){ return fMin; }
+    Double_t GetFitMax(){ return fMax; }
+    Double_t GetFitLowerBoundary(Int_t ct){ return fLow[ct]; }
+    Double_t GetFitUpperBoundary(Int_t ct){ return fUpp[ct]; }
+    const Char_t* GetFitMeanPolynomial(){ return szPolMean; }
+    const Char_t* GetFitSigmaPolynomial(){ return szPolSigma; }
+    const Char_t* GetFitLowerPolynomial(){ return szPolLow; }
+    const Char_t* GetFitUpperPolynomial(){ return szPolUpp; }
+    const Char_t* GetFitMeanPolynomialCT(){ return szPolMeanCT; }
+    const Char_t* GetFitSigmaPolynomialCT(){ return szPolSigmaCT; }
+    const Char_t* GetFitLowerPolynomialCT(){ return szPolLowCT; }
+    const Char_t* GetFitUpperPolynomialCT(){ return szPolUppCT; }
+    Double_t GetFitSigma(){ return fSigma; }
+    void GetCutsFromGaussian();
+    void CalculateExcitationFunctions();
+
+    TObject* GetInputDataObject(Int_t ct) { return (TObject*)oDatIn[ct]; }
+    TObject* GetInputSignalObject(Int_t ct) { return (TObject*)oSigIn[ct]; }
+    TObject* GetInputBackgroundObject(Int_t ct, Int_t bg) { return (TObject*)oBGIn[ct][bg]; }
+    TObject* GetDataObject(Int_t ct, Int_t e) { return (TObject*)oDat[ct][e]; }
+    TObject* GetSignalObject(Int_t ct, Int_t e) { return (TObject*)oSig[ct][e]; }
+    TObject* GetBackgroundObject(Int_t ct, Int_t e, Int_t bg) { return (TObject*)oBG[ct][e][bg]; }
+    TObject* GetTotalBackgroundObject(Int_t ct, Int_t e) { return (TObject*)oBGTot[ct][e]; }
+    TObject* GetTotalObject(Int_t ct, Int_t e) { return (TObject*)oTot[ct][e]; }
+    TObject* GetFitObject(Int_t ct, Int_t e) { return (TObject*)oFit[ct][e]; }
+    Double_t* GetFitParameters(Int_t ct, Int_t e) { return (Double_t*)fPar[ct][e]; }
+    Double_t* GetFitParameterErrors(Int_t ct, Int_t e) { return (Double_t*)fParE[ct][e]; }
+    TF1* GetFitFunctionCT(Int_t ct, Int_t bg) { return (TF1*)fFitCT[ct][bg]; }
+    TF1* GetFitFunctionE(Int_t e, Int_t bg) { return (TF1*)fFitE[e][bg]; }
+    TGraphErrors* GetFitGraphCT(Int_t ct, Int_t bg) { return (TGraphErrors*)gParCT[ct][bg]; }
+    TGraphErrors* GetFitGraphE(Int_t e, Int_t bg) { return (TGraphErrors*)gParE[e][bg]; }
+    TGraphErrors* GetMeanCutGraph(Int_t ct) { return (TGraphErrors*)gCutMean[ct]; }
+    TGraphErrors* GetSigmaCutGraph(Int_t ct) { return (TGraphErrors*)gCutSigma[ct]; }
+    TGraphErrors* GetLowerCutGraph(Int_t ct) { return (TGraphErrors*)gCutLow[ct]; }
+    TGraphErrors* GetUpperCutGraph(Int_t ct) { return (TGraphErrors*)gCutUpp[ct]; }
+    TGraphErrors* GetMeanCutGraphCT(Int_t e) { return (TGraphErrors*)gCutMeanCT[e]; }
+    TGraphErrors* GetSigmaCutGraphCT(Int_t e) { return (TGraphErrors*)gCutSigmaCT[e]; }
+    TGraphErrors* GetLowerCutGraphCT(Int_t e) { return (TGraphErrors*)gCutLowCT[e]; }
+    TGraphErrors* GetUpperCutGraphCT(Int_t e) { return (TGraphErrors*)gCutUppCT[e]; }
+    TF1* GetMeanCutFunc(Int_t ct) { return (TF1*)fCutMean[ct]; }
+    TF1* GetSigmaCutFunc(Int_t ct) { return (TF1*)fCutSigma[ct]; }
+    TF1* GetLowerCutFunc(Int_t ct) { return (TF1*)fCutLow[ct]; }
+    TF1* GetUpperCutFunc(Int_t ct) { return (TF1*)fCutUpp[ct]; }
+    TF1* GetMeanCutFuncCT(Int_t e) { return (TF1*)fCutMeanCT[e]; }
+    TF1* GetSigmaCutFuncCT(Int_t e) { return (TF1*)fCutSigmaCT[e]; }
+    TF1* GetLowerCutFuncCT(Int_t e) { return (TF1*)fCutLowCT[e]; }
+    TF1* GetUpperCutFuncCT(Int_t e) { return (TF1*)fCutUppCT[e]; }
+    TH2* GetExcitationFunction(Int_t ct) { return (TH2*)hIM[ct]; }
+
+    TObject**   GetInputDataObjects() { return (TObject**)oDatIn; }
+    TObject**   GetInputSignalObjects() { return (TObject**)oSigIn; }
+    TObject***  GetInputBackgroundObjects() { return (TObject***)oBGIn; }
+    TObject***  GetDataObjects() { return (TObject***)oDat; }
+    TObject***  GetSignalObjects() { return (TObject***)oSig; }
+    TObject**** GetBackgroundObjects() { return (TObject****)oBG; }
+    TObject***  GetTotalBackgroundObjects() { return (TObject***)oBGTot; }
+    TObject***  GetTotalObjects() { return (TObject***)oTot; }
+    TObject***  GetFitObjects() { return (TObject***)oFit; }
+    TOEnergyThetaCut* GetCutObject() { return (TOEnergyThetaCut*)eCut; }
+
+    ClassDef(TMFitCollection_old, 1)  // fit object collection
+};
+
+#endif
+

@@ -1,0 +1,119 @@
+/*************************************************************************
+ * Author: Manuel Dieterle, 2014
+ *************************************************************************/
+
+//////////////////////////////////////////////////////////////////////////
+//                                                                      //
+// TMFit_old                                                                //
+//                                                                      //
+// Class for determining cuts                                           //
+//                                                                      //
+//////////////////////////////////////////////////////////////////////////
+
+
+#ifndef myTMFit_old
+#define myTMFit_old
+
+#include <cstdlib>
+#include <iostream>
+#include <fstream>
+#include <stdio.h>
+#include <string.h>
+#include "TMFit_oldCollection.h"
+#include "TOEnergyThetaCut.h"
+#include "TNamed.h"
+#include "TFile.h"
+#include "TH1.h"
+#include "TH2.h"
+#include "TMFunctor.h"
+#include "TF1.h"
+#include "TF2.h"
+#include "TCanvas.h"
+#include "TPad.h"
+#include "TGaxis.h"
+#include "TLine.h"
+#include "TLatex.h"
+
+//using namespace std;
+
+class TMFit_old : public TNamed
+{
+
+protected:
+
+    TMFit_oldCollection* fc;                    // fit object collection
+    TOEnergyThetaCut* fe;                   // cut object
+
+    const Char_t* hName;                    // histo name
+    Char_t** hNameBGall;                    // [fNBGall] all MC BG index array
+    Int_t* fIBGall;                         // [fNBGall] all MC BG index array
+    Int_t* fIBG;                            // [fNBG] MC BG index array
+    Int_t fNBGall;                          // number of all MC BG contributions
+    Int_t fNBG;                             // number of MC BG contributions
+    Int_t fNCTbins;                         // number of cos(theta) bins
+
+//    TFile* fOut;                            // output file
+    Int_t fRebin;                           // rebin projection histos
+
+public:
+
+    TMFit_old();
+    TMFit_old(const Char_t* szName, const Char_t* szTitle,
+          const Char_t* szConfig, Char_t* szBG,
+          const Char_t* szPolM, const Char_t* szPolS,
+          const Char_t* szPolLo, const Char_t* szPolUp, 
+          const Char_t* szPolMc, const Char_t* szPolSc,
+          const Char_t* szPolLoc, const Char_t* szPolUpc, Double_t fSigma,
+          Double_t fFitMin, Double_t fFitMax,
+          Char_t* szFitLo, Char_t* szFitUp,
+          const Char_t* szData, const Char_t* szMCsig, const Char_t* szMCbg,
+          const Char_t* szHisto, Int_t nCT, 
+          const Char_t* szXtitle = "", const Char_t* szYtitle = "Counts [a.u.]",
+          const Char_t* szExFunc = "null", Bool_t kSig = kFALSE,
+          const Char_t* szConfig1 = "null", const Char_t* szConfig2 = "null", 
+          const Char_t* szMCsig1 = "null", const Char_t* szMCsig2 = "null", Double_t nRel = 1.);
+    virtual ~TMFit_old();
+
+    void SetBackgroundContributions(const Char_t* szConfig, Char_t* szBG, Bool_t kSig = kFALSE, const Char_t* szConfig1 = "null", const Char_t* szConfig2 = "null");
+    void SetCollection(const Char_t* szData, const Char_t* szMCsig, const Char_t* szMCbg,
+                       const Char_t* szXtitle, const Char_t* szYtitle, const Char_t* szExFunc, 
+                       Bool_t kSig = kFALSE, const Char_t* szMCsig1 = "null", 
+                       const Char_t* szMCsig2 = "null", Double_t nRel = 1.);
+    void Print();
+    void SetRebin( Int_t r ){ fRebin = r; }
+    void Fit(const Char_t* szFit, const Char_t* szMeth, Int_t nRep,
+                const Char_t* szParPolE, const Char_t* szParPolCT,
+                Double_t fmin, Double_t fmax,
+                Double_t fSmin, Double_t fSmax,
+                Double_t fSHmin, Double_t fSHmax,
+                Double_t fGmin, Double_t fGmax,
+                Double_t fGHmin, Double_t fGHmax,
+                Double_t fGMmin, Double_t fGMmax,
+                Double_t fGSmin, Double_t fGSmax,
+                Int_t fExFunc = 0, Double_t fVal = 135.,
+                Int_t fInt = 1, const Char_t* effName = "null",
+                Double_t fBR = 1., Double_t fTD = 1.);
+    void Fit2D(const Char_t* szFit, const Char_t* szMeth,
+                  const Char_t* szParPolE, const Char_t* szParPolCT,
+                  Double_t fmin, Double_t fmax,
+                  Double_t fSmin, Double_t fSmax,
+                  Double_t fSHmin, Double_t fSHmax,
+                  Double_t fGmin, Double_t fGmax,
+                  Double_t fGHmin, Double_t fGHmax,
+                  Double_t fGMmin, Double_t fGMmax,
+                  Double_t fGSmin, Double_t fGSmax,
+                  Int_t fExFunc, Double_t fVal,
+                  Int_t fInt, const Char_t* effName,
+                  Double_t fBR, Double_t fTD);
+
+    void DrawFit(Int_t iNPadX, Int_t iNPadY, Int_t iNDC);
+//    void SaveCuts();
+    void DrawCutRegions();
+    void DrawFitParameters(Bool_t kFit = kFALSE);
+    void SaveAll(const Char_t* szName);
+
+    ClassDef(TMFit_old, 1)  // Bin of differential cross section
+};
+
+#endif
+
